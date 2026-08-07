@@ -90,38 +90,38 @@
     modal.showModal();
   }
 
-  async function loadCatalog() {
-    showStatus('GitHub klasöründeki tasarımlar yükleniyor…');
-    gallery.innerHTML = '';
-    emptyState.classList.add('hidden');
-    refreshBtn.disabled = true;
+ async function loadCatalog() {
+  try {
+    const config = window.KATALOG_CONFIG;
 
-    const api = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(cfg.folder)}?ref=${encodeURIComponent(cfg.branch)}`;
+    const apiUrl =
+      `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.folder}?ref=${config.branch}`;
 
-    try {
-      const res = await fetch(api, { headers: { 'Accept': 'application/vnd.github+json' } });
-      if (!res.ok) throw new Error(`GitHub API: ${res.status}`);
-      const data = await res.json();
-      if (!Array.isArray(data)) throw new Error('Klasör içeriği alınamadı.');
+    const response = await fetch(apiUrl, {
+      headers: {
+        Accept: "application/vnd.github+json"
+      }
+    });
 
-      allItems = data
-        .filter(x => x.type === 'file' && imageExt.test(x.name))
-        .map(x => ({ name: x.name, download_url: x.download_url, html_url: x.html_url }))
-        .sort((a, b) => a.name.localeCompare(b.name, 'tr', { numeric: true, sensitivity: 'base' }));
-
-      designCount.textContent = allItems.length;
-      hideStatus();
-      applySearch();
-    } catch (err) {
-      console.error(err);
-      allItems = [];
-      designCount.textContent = '0';
-      resultText.textContent = 'Katalog yüklenemedi';
-      showStatus('Katalog GitHub üzerinden yüklenemedi. assets/config.js içindeki owner, repo, folder ve branch bilgilerini kontrol et. Repo private ise GitHub Pages tarayıcıdan API erişimi için uygun olmayabilir.', true);
-    } finally {
-      refreshBtn.disabled = false;
+    if (!response.ok) {
+      throw new Error(`GitHub API hatası: ${response.status}`);
     }
+
+    const files = await response.json();
+
+    const images = files.filter(file =>
+      file.type === "file" &&
+      /\.(png|jpg|jpeg|webp|gif)$/i.test(file.name)
+    );
+
+    console.log("Bulunan görseller:", images);
+
+    renderCatalog(images);
+
+  } catch (error) {
+    console.error("Katalog yükleme hatası:", error);
   }
+}
 
   searchInput.addEventListener('input', applySearch);
   refreshBtn.addEventListener('click', loadCatalog);
