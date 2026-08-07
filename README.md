@@ -4,23 +4,22 @@ Modern, responsive ve GitHub klasöründen otomatik görsel çeken kart katalog 
 
 ## GitHub ayarı
 
-`assets/config.js` dosyasını aç:
+`assets/config.js` şu repo için hazırdır:
 
 ```js
 window.KATALOG_CONFIG = {
-  owner: "mesut-atakan",
+  owner: "gymsoft-software",
   repo: "KartTasarim",
   folder: "KartKatalog",
   branch: "main",
+  title: "Kart Tasarım",
   logo: "assets/logo-placeholder.svg"
 };
 ```
 
-Repo veya branch farklıysa sadece burayı değiştir.
-
 ## Logo ekleme
 
-Kendi logonu örneğin `assets/logo.png` olarak koy ve config.js içinde:
+Kendi logonu örneğin `assets/logo.png` olarak ekle ve `config.js` içinde:
 
 ```js
 logo: "assets/logo.png"
@@ -28,14 +27,13 @@ logo: "assets/logo.png"
 
 olarak değiştir.
 
-## GitHub Pages ile yayınlama
+## GitHub Pages
 
-1. Bu dosyaları repo'nun yayınlanacak klasörüne yükle.
-2. GitHub > Settings > Pages bölümüne gir.
-3. Branch olarak `main`, klasör olarak sitenin bulunduğu kökü seç.
-4. Site açıldığında katalog, GitHub API üzerinden `KartKatalog` klasöründeki görselleri otomatik listeler.
+Repo köküne bu dosyaları yükle. GitHub > Settings > Pages bölümünde `main` branch ve `/ (root)` seçili olmalı.
 
-> Not: Repo private ise tarayıcı üzerinden kimliksiz GitHub API erişimi çalışmayabilir. Public repo önerilir.
+Site adresi:
+
+`https://gymsoft-software.github.io/KartTasarim/`
 
 ## Desteklenen görseller
 
@@ -43,4 +41,4 @@ PNG, JPG, JPEG, WEBP, GIF, AVIF
 
 ## Kart oranı
 
-Kartlar 525 × 824 px oranına göre gösterilir. Farklı ölçüler de çalışır; görsel `cover` olarak kutuya oturur.
+Kartlar 525 × 824 px oranına göre gösterilir.

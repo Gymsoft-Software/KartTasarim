@@ -6,6 +6,6 @@ window.KATALOG_CONFIG = {
   folder: "KartKatalog",
   branch: "main",
   title: "Kart Tasarım",
-  // İstersen logo-placeholder.svg yerine kendi logo dosyanı koyup burayı değiştir.
+  // Kendi logonu assets klasörüne ekleyip aşağıdaki yolu değiştirebilirsin.
   logo: "assets/logo-placeholder.svg"
 };
