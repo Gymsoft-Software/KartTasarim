@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0a0b0d" />
+  <title>Kart Tasarım Kataloğu</title>
+  <meta name="description" content="Gymsoft kart tasarımlarını modern bir katalog görünümünde sergileyen web sitesi." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <div class="ambient ambient-1"></div>
+  <div class="ambient ambient-2"></div>
+
+  <header class="site-header">
+    <a class="brand" href="#" aria-label="Ana sayfa">
+      <div class="brand-logo">
+        <img id="logoImage" src="assets/logo-placeholder.svg" alt="Firma logosu" />
+      </div>
+      <div class="brand-copy">
+        <strong>Kart Tasarım</strong>
+        <span>Premium katalog</span>
+      </div>
+    </a>
+
+    <div class="header-actions">
+      <button class="ghost-btn" id="refreshBtn" type="button" title="Kataloğu yenile">
+        <span class="icon">↻</span> Yenile
+      </button>
+      <a class="primary-btn" id="githubBtn" href="#" target="_blank" rel="noopener">GitHub Klasörü ↗</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span></span> GYMSOFT • KART KATALOĞU</div>
+        <h1>Kart tasarımlarını<br><em>tek yerde keşfet.</em></h1>
+        <p>GitHub'daki <b>KartKatalog</b> klasörüne eklenen tasarımlar otomatik olarak burada listelenir. Arama yapabilir, büyütebilir ve tasarımı doğrudan açabilirsin.</p>
+      </div>
+      <div class="hero-card">
+        <div class="hero-card-top">
+          <span class="pulse"></span>
+          <span>Canlı katalog</span>
+        </div>
+        <div class="hero-card-number" id="designCount">—</div>
+        <div class="hero-card-label">yayındaki tasarım</div>
+        <div class="mini-rule"></div>
+        <small>Önerilen kart ölçüsü: <b>525 × 824 px</b></small>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="Katalog kontrolleri">
+      <div class="search-wrap">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="Tasarım ara… örn. alpagu, ön, arka" autocomplete="off" />
+      </div>
+      <div class="view-info">
+        <span id="resultText">Tasarımlar yükleniyor…</span>
+      </div>
+    </section>
+
+    <section>
+      <div id="statusBox" class="status-box">GitHub klasörü kontrol ediliyor…</div>
+      <div id="gallery" class="gallery" aria-live="polite"></div>
+      <div id="emptyState" class="empty-state hidden">
+        <div class="empty-icon">◌</div>
+        <h3>Sonuç bulunamadı</h3>
+        <p>Arama kelimesini değiştirip tekrar deneyebilirsin.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div>
+      <strong>Kart Tasarım Kataloğu</strong>
+      <span>Gymsoft için hazırlanmıştır.</span>
+    </div>
+    <span class="footer-note">GitHub klasöründeki PNG/JPG/WEBP dosyalarını otomatik listeler.</span>
+  </footer>
+
+  <dialog id="previewModal" class="preview-modal">
+    <button id="closeModal" class="modal-close" type="button" aria-label="Kapat">×</button>
+    <div class="modal-content">
+      <div class="modal-image-wrap">
+        <img id="modalImage" alt="Kart tasarımı önizleme" />
+      </div>
+      <div class="modal-meta">
+        <span class="modal-kicker">TASARIM ÖNİZLEME</span>
+        <h2 id="modalTitle"></h2>
+        <div class="modal-actions">
+          <a id="openOriginal" class="primary-btn" target="_blank" rel="noopener">Orijinali aç ↗</a>
+          <button id="copyName" class="ghost-btn" type="button">Dosya adını kopyala</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="assets/config.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
