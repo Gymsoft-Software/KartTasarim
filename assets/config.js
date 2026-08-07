@@ -1,7 +1,7 @@
 // GitHub ayarları
 // Repo veya klasör adı değişirse sadece bu dosyayı düzenle.
 window.KATALOG_CONFIG = {
-  owner: "mesut-atakan",
+  owner: "gymsoft-software",
   repo: "KartTasarim",
   folder: "KartKatalog",
   branch: "main",
