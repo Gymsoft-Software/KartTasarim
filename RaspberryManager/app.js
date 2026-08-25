@@ -15,46 +15,20 @@ function setStatus(el, text, type = "neutral") {
 }
 
 const API_BASE = String(window.GYMSOFT_AGENT_URL || "http://127.0.0.1:5000").replace(/\/$/, "");
-
 function apiUrl(url) {
     if (/^https?:\/\//i.test(url)) return url;
     return `${API_BASE}${url.startsWith("/") ? url : `/${url}`}`;
 }
-
 async function api(url, options = {}) {
     const response = await fetch(apiUrl(url), {
         headers: { "Content-Type": "application/json", ...(options.headers || {}) },
         ...options,
     });
     const contentType = response.headers.get("content-type") || "";
-    const data = contentType.includes("application/json")
-        ? await response.json()
-        : { ok: response.ok, error: await response.text() };
+    const data = contentType.includes("application/json") ? await response.json() : { ok: response.ok, error: await response.text() };
     if (!response.ok || data.ok === false) throw new Error(data.error || `HTTP ${response.status}`);
     return data;
 }
-
-async function checkLocalAgent() {
-    const state = $("agentState");
-    if (!state) return;
-    state.textContent = `Kontrol ediliyor · ${API_BASE}`;
-    state.className = "agent-checking";
-    try {
-        const data = await api("/api/agent-status", { method: "GET" });
-        state.textContent = `Bağlı · ${data.name || "Gymsoft Local Agent"} · ${data.version || "v6"}`;
-        state.className = "agent-online";
-        const cidr = $("cidr");
-        if (cidr && data.default_cidr && (!cidr.value || cidr.value === "192.168.1.0/24")) {
-            cidr.value = data.default_cidr;
-        }
-    } catch (err) {
-        state.textContent = `Bağlanamadı · Local Agent'i çalıştırın (${API_BASE})`;
-        state.className = "agent-offline";
-    }
-}
-
-$("agentCheckBtn")?.addEventListener("click", checkLocalAgent);
-checkLocalAgent();
 
 function renderDevices(devices) {
     const body = $("deviceRows");
@@ -248,6 +222,10 @@ function scheduleLiveStatus(delay = 3500) {
 }
 
 async function refreshLiveStatus() {
+    if (window.GYMSOFT_DEMO_MODE && typeof applyDemoLiveStatus === "function") {
+        applyDemoLiveStatus();
+        return scheduleLiveStatus();
+    }
     if (liveStatusBusy) return scheduleLiveStatus();
     if (!selectedDevice) {
         resetLiveStatus();
@@ -1103,11 +1081,304 @@ $("dashLockBtn")?.addEventListener("click", () => sendTurnstileAction("lock"));
 $("quickKioskBtn")?.addEventListener("click", () => runTurnService("chromium_restart", "quickKioskBtn", "Chromium kiosk yeniden başlatılsın mı?"));
 $("quickGc3Btn")?.addEventListener("click", () => runTurnService("gc3_restart", "quickGc3Btn", "gc3.py yeniden başlatılsın mı?"));
 $("dashDiagnoseBtn")?.addEventListener("click", () => {
-    $("diagnoseBtn")?.click();
-    document.querySelector("#diagnoseTools")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (typeof navigateToPage === "function") navigateToPage("diagnostics");
+    setTimeout(() => $("diagnoseBtn")?.click(), 120);
 });
 
 window.addEventListener("resize", () => {
     drawSparkline("tempChart", liveHistory.temp, { min: 35, max: Math.max(85, ...(liveHistory.temp.length ? liveHistory.temp : [85])) });
     drawSparkline("cpuChart", liveHistory.cpu, { min: 0, max: 100 });
 });
+
+
+/* ========================================================================== 
+   Gymsoft Raspberry Manager v8 — SPA navigation + Experience Mode
+   ========================================================================== */
+window.GYMSOFT_DEMO_MODE = false;
+
+const PAGE_META = {
+    dashboard: ["YÖNETİM MERKEZİ", "Dashboard", "Tüm turnike ve Raspberry cihazlarının genel görünümü."],
+    devices: ["ENVANTER", "Cihazlar", "Ağ taraması, Raspberry doğrulama ve müşteri / salon envanteri."],
+    installation: ["KURULUM", "Kurulum Merkezi", "Raspberry kurulumu, GitHub Release ve turnike lisans ayarları."],
+    turnstile: ["TURNİKE", "Turnike Kontrolü", "Geçiş, yön, süre, servis ve test işlemleri."],
+    hardware: ["DONANIM", "Ekran & Donanım", "Ekran çözünürlüğü, screenshot ve GPIO testleri."],
+    network: ["AĞ", "Ağ Yönetimi", "IP, DHCP, bağlantı profilleri ve ağ kalite kontrolleri."],
+    health: ["SİSTEM", "Sağlık & Sistem", "Sıcaklık, CPU, RAM, disk ve sistem bilgileri."],
+    diagnostics: ["TEKNİK SERVİS", "Tanı, Log & Yedek", "Arıza tespiti, servis logları, audit ve yedekleme."],
+    settings: ["AYARLAR", "Ayarlar & Güvenlik", "Raspberry parolası, agent ve kullanıcı deneyimi tercihleri."],
+};
+
+function navigateToPage(page, { updateHash = true } = {}) {
+    const key = PAGE_META[page] ? page : "dashboard";
+    document.querySelectorAll(".app-page-section").forEach(section => {
+        section.classList.toggle("page-active", section.dataset.page === key);
+    });
+    document.querySelectorAll("[data-page-link]").forEach(link => {
+        link.classList.toggle("active", link.dataset.pageLink === key);
+    });
+    const meta = PAGE_META[key];
+    if ($("pageEyebrow")) $("pageEyebrow").textContent = meta[0];
+    if ($("pageTitle")) $("pageTitle").textContent = meta[1];
+    if ($("pageSubtitle")) $("pageSubtitle").textContent = meta[2];
+    document.title = `${meta[1]} · Gymsoft Raspberry Manager`;
+    if (updateHash && location.hash !== `#${key}`) history.replaceState(null, "", `#${key}`);
+    document.querySelector(".sidebar")?.classList.remove("mobile-open");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initPageRouter() {
+    document.querySelectorAll("[data-page-link]").forEach(link => link.addEventListener("click", event => {
+        event.preventDefault();
+        navigateToPage(link.dataset.pageLink);
+    }));
+    const hash = location.hash.replace("#", "");
+    navigateToPage(PAGE_META[hash] ? hash : "dashboard", { updateHash: !PAGE_META[hash] });
+    window.addEventListener("hashchange", () => {
+        const page = location.hash.replace("#", "");
+        if (PAGE_META[page]) navigateToPage(page, { updateHash: false });
+    });
+    $("mobileMenuBtn")?.addEventListener("click", () => document.querySelector(".sidebar")?.classList.toggle("mobile-open"));
+}
+
+const DEMO_INVENTORY = [
+    { customer: "Conan Fit", name: "Turnike 1", ip: "192.168.1.101", model: "Raspberry Pi 5", release: "v22.2", status: "online", temp: 47.6, health: 96, seen: "şimdi" },
+    { customer: "Conan Fit", name: "Turnike 2", ip: "192.168.1.102", model: "Raspberry Pi 5", release: "v22.2", status: "online", temp: 45.2, health: 98, seen: "8 sn önce" },
+    { customer: "X Fitness", name: "Turnike 1", ip: "192.168.1.103", model: "Raspberry Pi 3", release: "v18.0", status: "warning", temp: 72.1, health: 68, seen: "12 sn önce" },
+    { customer: "Atlantis Gym", name: "Turnike 1", ip: "192.168.1.104", model: "Raspberry Pi 5", release: "v22.2", status: "offline", temp: null, health: 20, seen: "18 dk önce" },
+    { customer: "Power Zone", name: "Turnike 3", ip: "192.168.1.105", model: "Raspberry Pi 5", release: "v22.2", status: "online", temp: 44.8, health: 94, seen: "3 sn önce" },
+];
+let demoInventory = DEMO_INVENTORY.map(item => ({...item}));
+let demoWizardStep = 1;
+let demoWizardData = { profile: "Pi 5 Wayland", ip: "192.168.1.120", user: "gymsoft", direction: "cift", seconds: 9, release: "v22.2" };
+const TURN_TESTS = ["Bobin 1", "Bobin 2", "Buzzer", "LED", "Switch", "Apache / gircik.php", "gc3.py servisi"];
+let turnTestRunId = 0;
+let demoAudit = [
+    { time: "10:42:18", user: "Teknik-1", text: "Conan Fit / Turnike 1 · Kiosk yeniden başlatıldı", type: "success" },
+    { time: "10:39:02", user: "Teknik-2", text: "X Fitness / Turnike 1 · throttled=0x50005 uyarısı görüldü", type: "warning" },
+    { time: "10:35:44", user: "Teknik-1", text: "Power Zone / Turnike 3 · Release v22.2 kuruldu", type: "change" },
+    { time: "10:31:07", user: "Teknik-3", text: "Conan Fit / Turnike 2 · IP 192.168.1.42 → 192.168.1.102", type: "change" },
+];
+
+function demoLog(text, type = "success") {
+    const now = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    demoAudit.unshift({ time: now, user: "Demo Kullanıcı", text, type });
+    demoAudit = demoAudit.slice(0, 20);
+    renderDemoActivity();
+    renderAudit();
+}
+
+function renderDemoAlarms() {
+    const items = [
+        ["critical", "Atlantis Gym / Turnike 1", "Cihaz çevrimdışı · son görülme 18 dk önce", "18 dk"],
+        ["warning", "X Fitness / Turnike 1", "72.1°C · throttled geçmişi tespit edildi", "12 sn"],
+        ["info", "Release güncellemesi", "v23.0 yayınlandı · 4 cihaz güncellenebilir", "yeni"],
+    ];
+    $("demoAlarmList").innerHTML = items.map(([type,title,detail,time]) => `<div class="alarm-item"><span class="alarm-dot ${type}"></span><div><strong>${title}</strong><small>${detail}</small></div><time>${time}</time></div>`).join("");
+}
+
+function renderDemoActivity() {
+    const list = demoAudit.slice(0, 5);
+    $("demoRecentActivity").innerHTML = list.length ? list.map(item => `<div class="timeline-item"><time>${item.time}</time><span class="timeline-marker"></span><div><strong>${escapeHtml(item.text)}</strong><small>${escapeHtml(item.user)}</small></div></div>`).join("") : `<div class="info-box muted">İşlem geçmişi temizlendi.</div>`;
+}
+
+function renderInventory() {
+    const q = ($("inventorySearch")?.value || "").trim().toLowerCase();
+    const filter = $("inventoryFilter")?.value || "all";
+    const list = demoInventory.filter(item => {
+        const matches = !q || `${item.customer} ${item.name} ${item.ip} ${item.model} ${item.release}`.toLowerCase().includes(q);
+        return matches && (filter === "all" || item.status === filter);
+    });
+    $("inventoryStatus").textContent = `${list.length} / ${demoInventory.length} cihaz`;
+    $("inventoryGrid").innerHTML = list.map(item => {
+        const temp = item.temp === null ? "--" : `${item.temp.toFixed(1)} °C`;
+        return `<article class="inventory-card"><span class="inventory-state ${item.status}"></span><span class="customer">${escapeHtml(item.customer)}</span><h3>${escapeHtml(item.name)}</h3><div class="inventory-meta"><div><span>IP</span><strong>${item.ip}</strong></div><div><span>Model</span><strong>${escapeHtml(item.model)}</strong></div><div><span>Sürüm</span><strong>${item.release}</strong></div><div><span>Sıcaklık</span><strong>${temp}</strong></div></div><div class="health-score"><div class="health-score-track"><div class="health-score-fill" style="width:${item.health}%"></div></div><strong>${item.health}/100</strong></div><div class="mini-result">Son görülme: ${item.seen}</div></article>`;
+    }).join("") || `<div class="info-box muted">Filtreye uygun cihaz bulunamadı.</div>`;
+}
+
+function renderAudit() {
+    const filter = $("auditFilter")?.value || "all";
+    const rows = demoAudit.filter(item => filter === "all" || item.type === filter);
+    $("auditTableWrap").innerHTML = rows.map(item => `<div class="audit-row"><time>${item.time}</time><span class="audit-user">${escapeHtml(item.user)}</span><strong>${escapeHtml(item.text)}</strong><span class="audit-badge ${item.type}">${item.type === "warning" ? "UYARI" : item.type === "change" ? "DEĞİŞİKLİK" : "BAŞARILI"}</span></div>`).join("") || `<div class="info-box muted">Bu filtrede kayıt yok.</div>`;
+}
+
+function renderTurnTests(states = {}) {
+    $("turnTestSteps").innerHTML = TURN_TESTS.map((name, index) => {
+        const state = states[index] || "pending";
+        const icon = state === "ok" ? "✓" : state === "running" ? "…" : index + 1;
+        const result = state === "ok" ? "Başarılı" : state === "running" ? "Test ediliyor" : "Bekliyor";
+        return `<div class="test-step-item ${state}"><span class="test-step-icon">${icon}</span><strong>${name}</strong><span class="test-step-result">${result}</span></div>`;
+    }).join("");
+}
+
+function renderWizard() {
+    $("wizardStatus").textContent = `Adım ${demoWizardStep} / 4`;
+    document.querySelectorAll(".wizard-step").forEach(btn => {
+        const step = Number(btn.dataset.step);
+        btn.classList.toggle("active", step === demoWizardStep);
+        btn.classList.toggle("done", step < demoWizardStep);
+    });
+    $("wizardBackBtn").disabled = demoWizardStep === 1;
+    $("wizardNextBtn").textContent = demoWizardStep === 4 ? "Deneme Kurulumunu Tamamla" : "Devam";
+    if (demoWizardStep === 1) {
+        $("wizardContent").innerHTML = `<h3>Kurulum Profili</h3><p>Raspberry tipine göre hazır ayar seçin.</p><div class="profile-grid">${["Pi 5 Wayland","Pi 5 X11","Pi 3 Legacy"].map(profile => `<div class="profile-option ${demoWizardData.profile===profile?'selected':''}" data-profile="${profile}"><strong>${profile}</strong><small>${profile === 'Pi 5 Wayland' ? 'Önerilen · labwc / wlr-randr' : profile === 'Pi 5 X11' ? 'Xorg kiosk uyumluluğu' : 'Eski Debian / LXDE sistemleri'}</small></div>`).join('')}</div>`;
+    } else if (demoWizardStep === 2) {
+        $("wizardContent").innerHTML = `<h3>Raspberry Bilgileri</h3><div class="two-col"><label><span>IP Adresi</span><input id="wizIp" value="${demoWizardData.ip}"></label><label><span>SSH Kullanıcısı</span><input id="wizUser" value="${demoWizardData.user}"></label></div><div class="info-box muted">Gerçek modda bu adım cihazı SSH üzerinden doğrular ve model/OS bilgisini getirir.</div>`;
+    } else if (demoWizardStep === 3) {
+        $("wizardContent").innerHTML = `<h3>Turnike Ayarları</h3><div class="two-col"><label><span>Yön</span><select id="wizDirection"><option value="sag">Sağ</option><option value="sol">Sol</option><option value="cift">Çift</option></select></label><label><span>Geçiş Süresi</span><input id="wizSeconds" type="number" value="${demoWizardData.seconds}"></label></div><label><span>Release</span><select id="wizRelease"><option>v22.2</option><option>v18.0</option><option>V22</option></select></label>`;
+        $("wizDirection").value = demoWizardData.direction;
+    } else {
+        $("wizardContent").innerHTML = `<h3>Kurulum Özeti</h3><div class="summary-list"><div><span>Profil</span><strong>${demoWizardData.profile}</strong></div><div><span>IP</span><strong>${demoWizardData.ip}</strong></div><div><span>Kullanıcı</span><strong>${demoWizardData.user}</strong></div><div><span>Yön</span><strong>${demoWizardData.direction}</strong></div><div><span>Geçiş Süresi</span><strong>${demoWizardData.seconds} sn</strong></div><div><span>Release</span><strong>${demoWizardData.release}</strong></div></div><div class="warning-box">Deneyim modunda hiçbir Raspberry’ye komut gönderilmez. Gerçek modda kurulumdan önce onay ekranı gösterilir.</div>`;
+    }
+}
+
+function collectWizardStep() {
+    if (demoWizardStep === 2) {
+        demoWizardData.ip = $("wizIp")?.value || demoWizardData.ip;
+        demoWizardData.user = $("wizUser")?.value || demoWizardData.user;
+    } else if (demoWizardStep === 3) {
+        demoWizardData.direction = $("wizDirection")?.value || demoWizardData.direction;
+        demoWizardData.seconds = Number($("wizSeconds")?.value || demoWizardData.seconds);
+        demoWizardData.release = $("wizRelease")?.value || demoWizardData.release;
+    }
+}
+
+function applyDemoLiveStatus() {
+    const t = 48 + (Math.random() * 2 - 1);
+    const cpu = 22 + Math.random() * 14;
+    const status = { temperature:t, cpu_percent:cpu, ram_percent:46.2, disk_percent:31.8, throttled:"throttled=0x0", network_active:true, uptime_seconds:218400, apache_active:true, gc3_active:true, hostname:"GYM-TURNIKE-01" };
+    setLiveConnection("Aktif · Demo", true);
+    $("liveDevice").textContent = "192.168.1.101 · GYM-TURNIKE-01";
+    $("liveTemp").textContent = `${t.toFixed(1)} °C`;
+    $("liveCpu").textContent = `${cpu.toFixed(1)}%`;
+    $("liveRam").textContent = "46.2%";
+    $("liveDisk").textContent = "31.8%";
+    $("liveThrottle").textContent = "0x0";
+    $("liveNetwork").textContent = "Aktif · 60s 40dk";
+    $("liveTurnstile").textContent = "Apache ✓ · gc3 ✓";
+    updateDashboard(status);
+}
+
+function setDemoMode(enabled) {
+    window.GYMSOFT_DEMO_MODE = Boolean(enabled);
+    document.body.classList.toggle("demo-mode", window.GYMSOFT_DEMO_MODE);
+    $("demoModeBtn").classList.toggle("demo-active", window.GYMSOFT_DEMO_MODE);
+    $("demoModeBtn").textContent = window.GYMSOFT_DEMO_MODE ? "Deneyim Modu: Açık" : "Deneyim Modu";
+    if ($("demoModeSwitch")) $("demoModeSwitch").checked = window.GYMSOFT_DEMO_MODE;
+    if ($("sidebarModeText")) $("sidebarModeText").textContent = window.GYMSOFT_DEMO_MODE ? "Deneyim modu aktif" : "Gerçek cihaz modu";
+    if (window.GYMSOFT_DEMO_MODE) {
+        selectedDevice = "192.168.1.101";
+        verifiedDevices[selectedDevice] = { is_raspberry:true, model:"Raspberry Pi 5 Model B", hostname:"GYM-TURNIKE-01", os:"Raspberry Pi OS", arch:"aarch64" };
+        lastScanDevices = DEMO_INVENTORY.map(item => ({ ip:item.ip, ssh:item.status!=="offline", http:item.status!=="offline", status:item.status === "offline" ? "Çevrimdışı" : "SSH adayı" }));
+        $("selectedIp").value = selectedDevice;
+        renderDevices(lastScanDevices);
+        showDeviceInfo(verifiedDevices[selectedDevice]);
+        applyDemoLiveStatus();
+        demoLog("Deneyim modu etkinleştirildi", "success");
+    } else {
+        if (selectedDevice === "192.168.1.101" && verifiedDevices[selectedDevice]?.hostname === "GYM-TURNIKE-01") {
+            selectedDevice = null;
+            lastScanDevices = [];
+            verifiedDevices = {};
+            $("selectedIp").value = "";
+            $("deviceInfo").textContent = "Cihaz bilgisi henüz alınmadı.";
+            renderDevices([]);
+            resetLiveStatus();
+        }
+    }
+    scheduleLiveStatus(100);
+}
+
+function simulateDemoAction(label, type="success") {
+    demoLog(`Conan Fit / Turnike 1 · ${label}`, type);
+    if ($("quickResult")) { $("quickResult").classList.remove("muted"); $("quickResult").textContent = `Deneyim Modu: ${label}`; }
+}
+
+function installDemoInterceptors() {
+    const actions = {
+        quickOpenBtn:"Geçiş izni verildi", dashOpenBtn:"Geçiş izni verildi", openTurnstileBtn:"Geçiş izni verildi",
+        dashLockBtn:"Turnike kilitlendi", lockTurnstileBtn:"Turnike kilitlendi",
+        quickKioskBtn:"Kiosk yeniden başlatıldı", chromiumRestartBtn:"Kiosk yeniden başlatıldı",
+        quickGc3Btn:"gc3.py yeniden başlatıldı", gc3RestartBtn:"gc3.py yeniden başlatıldı",
+        quickRebootBtn:"Reboot komutu simüle edildi", apacheRestartBtn:"Apache yeniden başlatıldı",
+        gpioBuzzerBtn:"Buzzer testi tamamlandı", gpioLedBtn:"LED testi tamamlandı", gpioCoil1Btn:"Bobin 1 testi tamamlandı", gpioCoil2Btn:"Bobin 2 testi tamamlandı",
+    };
+    document.addEventListener("click", event => {
+        if (!window.GYMSOFT_DEMO_MODE) return;
+        const id = event.target.closest("button")?.id;
+        if (!id || !actions[id]) return;
+        event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+        simulateDemoAction(actions[id], id === "quickRebootBtn" ? "warning" : "success");
+    }, true);
+}
+
+async function refreshAgentBadge() {
+    try {
+        const data = await api("/api/agent-status", { method:"GET" });
+        if ($("sidebarAgentText")) $("sidebarAgentText").textContent = `Agent ${data.version || "bağlı"}`;
+        if ($("settingsAgentVersion")) $("settingsAgentVersion").textContent = `${data.name || "Gymsoft Local Agent"} · ${data.version || "bağlı"}`;
+    } catch (err) {
+        if ($("sidebarAgentText")) $("sidebarAgentText").textContent = "Agent bağlı değil";
+        if ($("settingsAgentVersion")) $("settingsAgentVersion").textContent = "Agent bağlı değil · Deneyim modu kullanılabilir";
+    }
+}
+
+function initExperienceUi() {
+    initPageRouter();
+    renderDemoAlarms(); renderDemoActivity(); renderInventory(); renderAudit(); renderTurnTests(); renderWizard(); refreshAgentBadge();
+    $("demoModeBtn")?.addEventListener("click", () => setDemoMode(!window.GYMSOFT_DEMO_MODE));
+    $("demoModeSwitch")?.addEventListener("change", e => setDemoMode(e.target.checked));
+    $("inventorySearch")?.addEventListener("input", renderInventory);
+    $("inventoryFilter")?.addEventListener("change", renderInventory);
+    $("inventoryAddBtn")?.addEventListener("click", () => {
+        const n = demoInventory.length + 1;
+        demoInventory.push({ customer:"Demo Salon", name:`Turnike ${n}`, ip:`192.168.1.${110+n}`, model:"Raspberry Pi 5", release:"v22.2", status:"online", temp:46.0, health:92, seen:"şimdi" });
+        renderInventory(); demoLog(`Demo Salon / Turnike ${n} envantere eklendi`, "change");
+    });
+    $("demoClearAuditBtn")?.addEventListener("click", () => { demoAudit=[]; renderDemoActivity(); renderAudit(); });
+    $("auditFilter")?.addEventListener("change", renderAudit);
+    $("demoReleaseBtn")?.addEventListener("click", () => {
+        const btn=$("demoReleaseBtn"); btn.disabled=true; $("demoReleaseResult").textContent="1/3 Konfigürasyon yedeği alınıyor…";
+        setTimeout(()=>$("demoReleaseResult").textContent="2/3 v23.0 release indiriliyor…",600);
+        setTimeout(()=>$("demoReleaseResult").textContent="3/3 Sağlık kontrolü yapılıyor…",1200);
+        setTimeout(()=>{ $("demoReleaseResult").textContent="✓ Deneme güncellemesi tamamlandı. Rollback noktası hazır."; $("demoInstalledRelease").textContent="v23.0"; btn.disabled=false; demoLog("Conan Fit / Turnike 1 · v23.0 deneme güncellemesi tamamlandı","change"); },1800);
+    });
+    $("wizardStepper")?.addEventListener("click", e => { const b=e.target.closest("[data-step]"); if(!b)return; collectWizardStep(); demoWizardStep=Number(b.dataset.step); renderWizard(); });
+    $("wizardContent")?.addEventListener("click", e => { const p=e.target.closest("[data-profile]"); if(!p)return; demoWizardData.profile=p.dataset.profile; renderWizard(); });
+    $("wizardBackBtn")?.addEventListener("click", () => { collectWizardStep(); demoWizardStep=Math.max(1,demoWizardStep-1); renderWizard(); });
+    $("wizardNextBtn")?.addEventListener("click", () => { collectWizardStep(); if(demoWizardStep<4){demoWizardStep++;renderWizard();} else { setStatus($("wizardStatus"),"Deneme tamamlandı","success"); demoLog(`${demoWizardData.ip} · ${demoWizardData.profile} kurulum akışı deneyimlendi`,"change"); } });
+    $("startTurnTestBtn")?.addEventListener("click", () => {
+        const run=++turnTestRunId, states={}; setStatus($("turnTestStatus"),"Test ediliyor","running");
+        TURN_TESTS.forEach((_,i)=>setTimeout(()=>{ if(run!==turnTestRunId)return; states[i]="running"; renderTurnTests(states); setTimeout(()=>{ if(run!==turnTestRunId)return; states[i]="ok"; renderTurnTests(states); if(i===TURN_TESTS.length-1){setStatus($("turnTestStatus"),"7/7 başarılı","success");demoLog("Turnike test sihirbazı 7/7 başarılı","success");}},360); }, i*520));
+    });
+    $("resetTurnTestBtn")?.addEventListener("click",()=>{turnTestRunId++;renderTurnTests();setStatus($("turnTestStatus"),"Hazır","neutral");});
+    $("networkQualityBtn")?.addEventListener("click",()=>{
+        setStatus($("networkQualityState"),"Test ediliyor","running"); const items=[...$("networkQualityGrid").children]; items.forEach(i=>{i.className="quality-item";i.querySelector("strong").textContent="…";});
+        setTimeout(()=>{ const values=[["4 ms","good"],["0%","good"],["OK","good"],["Açık","good"]]; items.forEach((item,i)=>{item.querySelector("strong").textContent=values[i][0];item.classList.add(values[i][1]);});setStatus($("networkQualityState"),"Bağlantı iyi","success");demoLog("Ağ kalite testi · 4 ms / %0 kayıp / SSH açık","success"); },900);
+    });
+    $("confirmCriticalSwitch")?.addEventListener("change", e => demoLog(`Kritik işlem onayı ${e.target.checked?'açıldı':'kapatıldı'}`,"change"));
+    $("liveRefreshSwitch")?.addEventListener("change", e => { if(!e.target.checked && liveStatusTimer) clearTimeout(liveStatusTimer); else scheduleLiveStatus(100); });
+    installDemoInterceptors();
+}
+
+initExperienceUi();
+
+
+async function checkGitHubPagesAgent() {
+    const state = document.getElementById("agentState");
+    if (!state) return;
+    state.textContent = `Kontrol ediliyor · ${API_BASE}`;
+    state.className = "agent-checking";
+    try {
+        const data = await api("/api/agent-status", { method:"GET" });
+        state.textContent = `Bağlı · ${data.name || "Gymsoft Local Agent"} · ${data.version || "v8"}`;
+        state.className = "agent-online";
+        if (data.default_cidr && document.getElementById("cidr")?.value === "192.168.1.0/24") document.getElementById("cidr").value = data.default_cidr;
+        refreshAgentBadge();
+    } catch (err) {
+        state.textContent = `Bağlanamadı · GymsoftAgent.exe çalışmıyor (${API_BASE})`;
+        state.className = "agent-offline";
+    }
+}
+document.getElementById("agentCheckBtn")?.addEventListener("click", checkGitHubPagesAgent);
+document.getElementById("agentDemoBtn")?.addEventListener("click", () => setDemoMode(true));
+checkGitHubPagesAgent();

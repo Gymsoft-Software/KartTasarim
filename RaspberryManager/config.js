@@ -1,2 +1,2 @@
-// GitHub Pages arayüzünün bağlanacağı yerel Gymsoft Agent.
+// GymsoftAgent.exe yerel API adresi.
 window.GYMSOFT_AGENT_URL = "http://127.0.0.1:5000";

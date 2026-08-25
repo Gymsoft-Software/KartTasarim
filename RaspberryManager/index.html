@@ -3,16 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gymsoft Raspberry Manager</title>
+    <title>Gymsoft Raspberry Manager v8</title>
     <link rel="stylesheet" href="./app.css">
 </head>
 <body>
 <div class="github-agent-banner" id="agentBanner">
-  <div>
-    <strong>Gymsoft Local Agent</strong>
-    <span id="agentState">Bağlantı kontrol ediliyor…</span>
-  </div>
-  <button type="button" class="secondary" id="agentCheckBtn">Tekrar Dene</button>
+  <div><strong>GymsoftAgent.exe</strong><span id="agentState">Local Agent bağlantısı kontrol ediliyor…</span></div>
+  <div class="agent-banner-actions"><button type="button" class="secondary compact" id="agentCheckBtn">Tekrar Dene</button><button type="button" class="ghost compact" id="agentDemoBtn">Agent yoksa Demo Aç</button></div>
 </div>
 
 <div class="shell">
@@ -24,24 +21,21 @@
                 <span>Raspberry Manager</span>
             </div>
         </div>
-        <nav>
-            <a href="#dashboard" class="active"><span>⌂</span> Dashboard</a>
-            <a href="#scan"><span>⌕</span> Cihazlar / Ağ</a>
-            <a href="#install"><span>↓</span> Raspberry Kurulum</a>
-            <a href="#turnstileSetup"><span>◆</span> Turnike Kurulumu</a>
-            <a href="#turnstile"><span>↔</span> Turnike Kontrol</a>
-            <a href="#gpioTools"><span>⚡</span> GPIO / Donanım</a>
-            <a href="#displayTools"><span>▣</span> Ekran</a>
-            <a href="#networkTools"><span>⌁</span> Ağ İşlemleri</a>
-            <a href="#healthTools"><span>♥</span> Sağlık / Sistem</a>
-            <a href="#securityTools"><span>●</span> Güvenlik</a>
-            <a href="#diagnoseTools"><span>!</span> Arıza Tespiti</a>
-            <a href="#maintenanceTools"><span>≡</span> Log / Yedek</a>
-            <a href="#logs"><span>›_</span> Kurulum Logu</a>
+        <nav class="app-nav" id="appNav">
+            <a href="#dashboard" data-page-link="dashboard" class="active"><span>⌂</span><div><strong>Dashboard</strong><small>Genel durum</small></div></a>
+            <a href="#devices" data-page-link="devices"><span>▦</span><div><strong>Cihazlar</strong><small>Tarama & envanter</small></div></a>
+            <a href="#installation" data-page-link="installation"><span>↓</span><div><strong>Kurulum</strong><small>Raspberry & turnike</small></div></a>
+            <a href="#turnstile" data-page-link="turnstile"><span>↔</span><div><strong>Turnike</strong><small>Kontrol & test</small></div></a>
+            <a href="#hardware" data-page-link="hardware"><span>⚡</span><div><strong>Ekran & Donanım</strong><small>GPIO & görüntü</small></div></a>
+            <a href="#network" data-page-link="network"><span>⌁</span><div><strong>Ağ</strong><small>IP, DHCP, kalite</small></div></a>
+            <a href="#health" data-page-link="health"><span>♥</span><div><strong>Sağlık</strong><small>Sistem & performans</small></div></a>
+            <a href="#diagnostics" data-page-link="diagnostics"><span>!</span><div><strong>Tanı & Log</strong><small>Arıza & yedek</small></div></a>
+            <a href="#settings" data-page-link="settings"><span>⚙</span><div><strong>Ayarlar</strong><small>Güvenlik & agent</small></div></a>
         </nav>
         <div class="sidebar-note">
-            <strong>Private Repo</strong>
-            <span>Gymsoft-Software/Turnike</span>
+            <strong>GYMSOFT Manager v8</strong>
+            <span id="sidebarModeText">Gerçek cihaz modu</span>
+            <span class="sidebar-agent" id="sidebarAgentText">Agent bekleniyor</span>
         </div>
     </aside>
 
@@ -66,21 +60,25 @@
             </div>
         </div>
 
-        <header class="topbar">
-            <div>
-                <h1>Raspberry Pi Yönetim Paneli</h1>
-                <p>Ağdaki Raspberry cihazlarını bul, kur, izle ve turnike servislerini tek panelden yönet.</p>
+        <header class="topbar app-topbar">
+            <div class="topbar-title-row">
+                <button type="button" id="mobileMenuBtn" class="icon-button" aria-label="Menüyü aç">☰</button>
+                <div>
+                    <span class="eyebrow" id="pageEyebrow">YÖNETİM MERKEZİ</span>
+                    <h1 id="pageTitle">Dashboard</h1>
+                    <p id="pageSubtitle">Tüm turnike ve Raspberry cihazlarının genel görünümü.</p>
+                </div>
             </div>
             <div class="top-actions">
+                <button type="button" id="demoModeBtn" class="secondary compact">Deneyim Modu</button>
                 <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
                 <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
-                <button type="button" id="quickGc3Btn" class="secondary compact">gc3 Restart</button>
                 <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
-                <span class="badge">MVP v5</span>
+                <span class="badge">v8 Experience</span>
             </div>
         </header>
 
-        <section id="dashboard" class="dashboard-section">
+        <section id="dashboard" class="dashboard-section app-page-section" data-page="dashboard">
             <div class="dashboard-hero">
                 <div>
                     <span class="eyebrow">AKTİF CİHAZ</span>
@@ -120,7 +118,7 @@
             </div>
         </section>
 
-        <section class="panel" id="scan">
+        <section class="panel app-page-section" id="scan" data-page="devices">
             <div class="section-title">
                 <div>
                     <h2>Ağ Tarama</h2>
@@ -160,7 +158,7 @@
             </div>
         </section>
 
-        <section class="grid" id="install">
+        <section class="grid app-page-section" id="install" data-page="installation">
             <div class="panel">
                 <div class="section-title">
                     <div>
@@ -232,7 +230,7 @@
             </div>
         </section>
 
-        <section class="panel" id="securityTools">
+        <section class="panel app-page-section" id="securityTools" data-page="settings">
             <div class="section-title">
                 <div>
                     <h2>Raspberry Pi Parola Değiştirme</h2>
@@ -254,7 +252,7 @@
             <div id="passwordResult" class="info-box muted">Parola yalnızca işlem sırasında kullanılır ve panel depolamasına kaydedilmez.</div>
         </section>
 
-        <section class="panel" id="turnstileSetup">
+        <section class="panel app-page-section" id="turnstileSetup" data-page="installation">
             <div class="section-title">
                 <div>
                     <h2>Turnike Kurulumu / Lisans</h2>
@@ -302,7 +300,7 @@
             <div id="turnSetupResult" class="info-box muted">Henüz turnike kurulum ayarı okunmadı.</div>
         </section>
 
-        <section class="panel" id="networkTools">
+        <section class="panel app-page-section" id="networkTools" data-page="network">
             <div class="section-title">
                 <div>
                     <h2>Ağ İşlemleri</h2>
@@ -347,7 +345,7 @@
             <pre id="networkOutput" class="tool-output">Ağ işlemi çıktısı burada görüntülenecek.</pre>
         </section>
 
-        <section class="grid" id="healthTools">
+        <section class="grid app-page-section" id="healthTools" data-page="health">
             <div class="panel">
                 <div class="section-title">
                     <div>
@@ -373,7 +371,7 @@
             </div>
         </section>
 
-        <section class="panel" id="displayTools">
+        <section class="panel app-page-section" id="displayTools" data-page="hardware">
             <div class="section-title">
                 <div>
                     <h2>Ekran</h2>
@@ -395,7 +393,7 @@
             <pre id="displayOutput" class="tool-output">Ekran işlemi çıktısı burada görüntülenecek.</pre>
         </section>
 
-        <section class="grid visual-tools-grid" id="visualTools">
+        <section class="grid visual-tools-grid app-page-section" id="visualTools" data-page="hardware">
             <div class="panel screenshot-panel">
                 <div class="section-title">
                     <div><h2>Uzaktan Ekran Görüntüsü</h2><p>Wayland için grim, X11 için scrot kullanır.</p></div>
@@ -425,7 +423,7 @@
             </div>
         </section>
 
-        <section class="panel" id="turnstile">
+        <section class="panel app-page-section" id="turnstile" data-page="turnstile">
             <div class="section-title">
                 <div>
                     <h2>Turnike</h2>
@@ -500,7 +498,102 @@
             </div>
         </section>
 
-        <section class="panel" id="diagnoseTools">
+        
+        <!-- v8: Kullanıcı dostu deneyim özellikleri -->
+        <section class="experience-grid app-page-section" id="demoOverview" data-page="dashboard">
+            <div class="panel experience-card alarm-center">
+                <div class="section-title compact-title">
+                    <div><h2>Alarm Merkezi</h2><p>Öncelikli sorunları tek bakışta görün.</p></div>
+                    <span class="status running" id="demoAlarmCount">3 açık uyarı</span>
+                </div>
+                <div id="demoAlarmList" class="alarm-list"></div>
+            </div>
+            <div class="panel experience-card">
+                <div class="section-title compact-title"><div><h2>Release Durumu</h2><p>Kurulu sürüm ve GitHub sürüm karşılaştırması.</p></div></div>
+                <div class="release-compare">
+                    <div><small>Kurulu</small><strong id="demoInstalledRelease">v22.2</strong></div>
+                    <div class="release-arrow">→</div>
+                    <div><small>Güncel</small><strong id="demoLatestRelease">v23.0</strong></div>
+                </div>
+                <button type="button" id="demoReleaseBtn" class="primary full-button">Güncelleme Akışını Deneyimle</button>
+                <div id="demoReleaseResult" class="mini-result">Güncellemeden önce otomatik konfigürasyon yedeği alınır.</div>
+            </div>
+            <div class="panel experience-card activity-card">
+                <div class="section-title compact-title"><div><h2>Son İşlemler</h2><p>Teknik servis işlem geçmişi.</p></div><button type="button" id="demoClearAuditBtn" class="ghost compact">Temizle</button></div>
+                <div id="demoRecentActivity" class="timeline-list"></div>
+            </div>
+        </section>
+
+        <section class="panel app-page-section" id="inventoryExperience" data-page="devices">
+            <div class="section-title">
+                <div><h2>Müşteri / Salon / Cihaz Envanteri</h2><p>Cihazları IP yerine müşteri ve turnike kimliğiyle yönetin. Bu bölüm deneyim modunda örnek verilerle çalışır.</p></div>
+                <span class="status success" id="inventoryStatus">5 cihaz</span>
+            </div>
+            <div class="inventory-toolbar">
+                <input id="inventorySearch" placeholder="Müşteri, salon, IP veya cihaz ara…">
+                <select id="inventoryFilter"><option value="all">Tüm durumlar</option><option value="online">Online</option><option value="warning">Uyarı</option><option value="offline">Offline</option></select>
+                <button type="button" id="inventoryAddBtn" class="secondary">+ Demo Cihaz Ekle</button>
+            </div>
+            <div class="inventory-grid" id="inventoryGrid"></div>
+        </section>
+
+        <section class="panel app-page-section" id="installWizardExperience" data-page="installation">
+            <div class="section-title">
+                <div><h2>Yeni Turnike Kurulum Sihirbazı</h2><p>Kurulum adımlarını tek akışta düzenler; deneyim modunda cihaza işlem göndermez.</p></div>
+                <span class="status neutral" id="wizardStatus">Adım 1 / 4</span>
+            </div>
+            <div class="wizard-stepper" id="wizardStepper">
+                <button type="button" data-step="1" class="wizard-step active"><span>1</span>Profil</button>
+                <button type="button" data-step="2" class="wizard-step"><span>2</span>Cihaz</button>
+                <button type="button" data-step="3" class="wizard-step"><span>3</span>Turnike</button>
+                <button type="button" data-step="4" class="wizard-step"><span>4</span>Özet</button>
+            </div>
+            <div class="wizard-content" id="wizardContent"></div>
+            <div class="wizard-actions"><button type="button" id="wizardBackBtn" class="secondary">Geri</button><button type="button" id="wizardNextBtn" class="primary">Devam</button></div>
+        </section>
+
+        <section class="panel app-page-section" id="turnstileTestExperience" data-page="turnstile">
+            <div class="section-title">
+                <div><h2>Turnike Test Sihirbazı</h2><p>Bobin, buzzer, LED, switch, web ve servis kontrollerini sırayla test etmeyi simüle eder.</p></div>
+                <span class="status neutral" id="turnTestStatus">Hazır</span>
+            </div>
+            <div id="turnTestSteps" class="test-step-list"></div>
+            <div class="tool-button-row"><button type="button" id="startTurnTestBtn" class="primary">Test Sihirbazını Başlat</button><button type="button" id="resetTurnTestBtn" class="secondary">Sıfırla</button></div>
+        </section>
+
+        <section class="panel app-page-section" id="networkQualityExperience" data-page="network">
+            <div class="section-title">
+                <div><h2>Ağ Kalite Testi</h2><p>Gateway, DNS, paket kaybı, gecikme ve SSH erişimini tek raporda toplayan yeni akışın önizlemesi.</p></div>
+                <span class="status neutral" id="networkQualityState">Hazır</span>
+            </div>
+            <div class="quality-grid" id="networkQualityGrid">
+                <div class="quality-item"><span>Gateway</span><strong>--</strong><small>ping</small></div>
+                <div class="quality-item"><span>Paket Kaybı</span><strong>--</strong><small>%</small></div>
+                <div class="quality-item"><span>DNS</span><strong>--</strong><small>çözümleme</small></div>
+                <div class="quality-item"><span>SSH</span><strong>--</strong><small>port 22</small></div>
+            </div>
+            <button type="button" id="networkQualityBtn" class="primary">Kalite Testini Deneyimle</button>
+        </section>
+
+        <section class="panel app-page-section" id="auditExperience" data-page="diagnostics">
+            <div class="section-title">
+                <div><h2>İşlem Geçmişi / Audit Log</h2><p>Kim, hangi cihazda, ne zaman hangi işlemi yaptı bilgisinin kullanıcı dostu görünümü.</p></div>
+                <select id="auditFilter" class="compact-select"><option value="all">Tüm işlemler</option><option value="warning">Uyarılar</option><option value="change">Değişiklikler</option></select>
+            </div>
+            <div id="auditTableWrap" class="audit-list"></div>
+        </section>
+
+        <section class="panel app-page-section" id="preferencesExperience" data-page="settings">
+            <div class="section-title"><div><h2>Arayüz & Agent Ayarları</h2><p>Panel davranışını sadeleştiren kullanıcı tercihleri.</p></div><span class="status success">v8</span></div>
+            <div class="settings-grid">
+                <label class="setting-row"><div><strong>Deneyim Modu</strong><small>Gerçek Raspberry olmadan yeni ekranları deneyin.</small></div><input type="checkbox" id="demoModeSwitch"></label>
+                <label class="setting-row"><div><strong>Kritik işlem onayı</strong><small>Reboot, GPIO ve IP değişikliklerinde onay sor.</small></div><input type="checkbox" id="confirmCriticalSwitch" checked></label>
+                <label class="setting-row"><div><strong>Canlı yenileme</strong><small>Seçili cihaz sağlık verilerini otomatik yenile.</small></div><input type="checkbox" id="liveRefreshSwitch" checked></label>
+            </div>
+            <div class="agent-info-card"><span>Local Agent</span><strong id="settingsAgentVersion">Bağlantı bekleniyor</strong><small>Web arayüzü SSH işlemlerini doğrudan yapmaz; GymsoftAgent.exe üzerinden çalışır.</small></div>
+        </section>
+
+        <section class="panel app-page-section" id="diagnoseTools" data-page="diagnostics">
             <div class="section-title">
                 <div>
                     <h2>Hızlı Arıza Tespiti</h2>
@@ -512,7 +605,7 @@
             <pre id="diagnoseOutput" class="tool-output diagnose-output">Henüz tanılama çalıştırılmadı.</pre>
         </section>
 
-        <section class="panel" id="maintenanceTools">
+        <section class="panel app-page-section" id="maintenanceTools" data-page="diagnostics">
             <div class="section-title">
                 <div><h2>Log Merkezi & Yedekleme</h2><p>Servis loglarını tek yerden görüntüleyin ve kritik Gymsoft ayarlarının yedeğini indirin.</p></div>
                 <span id="maintenanceState" class="status neutral">Hazır</span>
@@ -525,7 +618,7 @@
             <pre id="maintenanceOutput" class="tool-output">Log seçip “Logu Getir” butonuna basın.</pre>
         </section>
 
-        <section class="panel" id="logs">
+        <section class="panel app-page-section" id="logs" data-page="diagnostics">
             <div class="section-title">
                 <div>
                     <h2>Kurulum Logu</h2>
@@ -535,6 +628,7 @@
             </div>
             <pre id="logBox">Kurulum başlatıldığında loglar burada görüntülenecek.</pre>
         </section>
+    <button type="button" id="quickGc3Btn" class="hidden" aria-hidden="true">gc3 Restart</button>
     </main>
 </div>
 <script src="./config.js"></script>
