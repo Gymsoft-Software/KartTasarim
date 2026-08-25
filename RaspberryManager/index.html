@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gymsoft Raspberry Manager</title>
+    <link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<div class="github-agent-banner" id="agentBanner">
+  <div>
+    <strong>Gymsoft Local Agent</strong>
+    <span id="agentState">Bağlantı kontrol ediliyor…</span>
+  </div>
+  <button type="button" class="secondary" id="agentCheckBtn">Tekrar Dene</button>
+</div>
+
+<div class="shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">G</div>
+            <div>
+                <strong>Gymsoft</strong>
+                <span>Raspberry Manager</span>
+            </div>
+        </div>
+        <nav>
+            <a href="#dashboard" class="active"><span>⌂</span> Dashboard</a>
+            <a href="#scan"><span>⌕</span> Cihazlar / Ağ</a>
+            <a href="#install"><span>↓</span> Raspberry Kurulum</a>
+            <a href="#turnstileSetup"><span>◆</span> Turnike Kurulumu</a>
+            <a href="#turnstile"><span>↔</span> Turnike Kontrol</a>
+            <a href="#gpioTools"><span>⚡</span> GPIO / Donanım</a>
+            <a href="#displayTools"><span>▣</span> Ekran</a>
+            <a href="#networkTools"><span>⌁</span> Ağ İşlemleri</a>
+            <a href="#healthTools"><span>♥</span> Sağlık / Sistem</a>
+            <a href="#securityTools"><span>●</span> Güvenlik</a>
+            <a href="#diagnoseTools"><span>!</span> Arıza Tespiti</a>
+            <a href="#maintenanceTools"><span>≡</span> Log / Yedek</a>
+            <a href="#logs"><span>›_</span> Kurulum Logu</a>
+        </nav>
+        <div class="sidebar-note">
+            <strong>Private Repo</strong>
+            <span>Gymsoft-Software/Turnike</span>
+        </div>
+    </aside>
+
+    <main>
+        <div class="live-status-bar" id="liveStatusBar">
+            <div class="live-device-block">
+                <span class="live-dot offline" id="liveDot"></span>
+                <div>
+                    <small>Seçili Raspberry</small>
+                    <strong id="liveDevice">Cihaz seçilmedi</strong>
+                </div>
+            </div>
+            <div class="live-metrics">
+                <div class="live-metric"><span>SSH</span><strong id="liveConnection">Bekliyor</strong></div>
+                <div class="live-metric"><span>Sıcaklık</span><strong id="liveTemp">-- °C</strong></div>
+                <div class="live-metric"><span>CPU</span><strong id="liveCpu">--%</strong></div>
+                <div class="live-metric"><span>RAM</span><strong id="liveRam">--%</strong></div>
+                <div class="live-metric"><span>Disk</span><strong id="liveDisk">--%</strong></div>
+                <div class="live-metric"><span>Throttled</span><strong id="liveThrottle">--</strong></div>
+                <div class="live-metric"><span>Ağ</span><strong id="liveNetwork">--</strong></div>
+                <div class="live-metric"><span>Turnike</span><strong id="liveTurnstile">--</strong></div>
+            </div>
+        </div>
+
+        <header class="topbar">
+            <div>
+                <h1>Raspberry Pi Yönetim Paneli</h1>
+                <p>Ağdaki Raspberry cihazlarını bul, kur, izle ve turnike servislerini tek panelden yönet.</p>
+            </div>
+            <div class="top-actions">
+                <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
+                <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
+                <button type="button" id="quickGc3Btn" class="secondary compact">gc3 Restart</button>
+                <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
+                <span class="badge">MVP v5</span>
+            </div>
+        </header>
+
+        <section id="dashboard" class="dashboard-section">
+            <div class="dashboard-hero">
+                <div>
+                    <span class="eyebrow">AKTİF CİHAZ</span>
+                    <h2 id="dashDeviceName">Raspberry seçilmedi</h2>
+                    <p id="dashDeviceMeta">Ağ taramasından bir cihaz seçip SSH doğrulaması yapın.</p>
+                </div>
+                <div class="dashboard-health" id="dashHealthBadge">BEKLİYOR</div>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-tile"><span>Sıcaklık</span><strong id="dashTemp">-- °C</strong><small id="dashTempNote">Canlı veri bekleniyor</small></div>
+                <div class="metric-tile"><span>CPU</span><strong id="dashCpu">--%</strong><small>anlık kullanım</small></div>
+                <div class="metric-tile"><span>RAM</span><strong id="dashRam">--%</strong><small>kullanılan bellek</small></div>
+                <div class="metric-tile"><span>Disk</span><strong id="dashDisk">--%</strong><small>kök dosya sistemi</small></div>
+                <div class="metric-tile"><span>Apache</span><strong id="dashApache">--</strong><small>web servisi</small></div>
+                <div class="metric-tile"><span>gc3.py</span><strong id="dashGc3">--</strong><small>turnike kontrolü</small></div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="panel chart-panel">
+                    <div class="section-title compact-title"><div><h2>Canlı Performans</h2><p>Son yaklaşık 3,5 dakikalık sıcaklık ve CPU geçmişi.</p></div><span class="status neutral" id="historyState">Bekliyor</span></div>
+                    <div class="chart-stack">
+                        <div><span class="chart-label">Sıcaklık °C</span><canvas id="tempChart" width="700" height="120"></canvas></div>
+                        <div><span class="chart-label">CPU %</span><canvas id="cpuChart" width="700" height="120"></canvas></div>
+                    </div>
+                </div>
+                <div class="panel quick-panel">
+                    <div class="section-title compact-title"><div><h2>Hızlı İşlemler</h2><p>Sık kullanılan servis işlemleri.</p></div></div>
+                    <div class="quick-grid">
+                        <button type="button" id="dashOpenBtn" class="primary">Geçiş İzni Ver</button>
+                        <button type="button" id="dashLockBtn" class="danger">Turnikeyi Kilitle</button>
+                        <button type="button" id="dashScreenshotBtn" class="secondary">Ekran Görüntüsü</button>
+                        <button type="button" id="dashDiagnoseBtn" class="secondary">Hızlı Teşhis</button>
+                    </div>
+                    <div id="quickResult" class="info-box muted">Bir Raspberry doğrulandığında hızlı işlemler kullanılabilir.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" id="scan">
+            <div class="section-title">
+                <div>
+                    <h2>Ağ Tarama</h2>
+                    <p>SSH/HTTP portları açık olan cihazları yerel ağda bulur.</p>
+                </div>
+                <span id="scanState" class="status neutral">Hazır</span>
+            </div>
+            <div class="form-row scan-row">
+                <label>
+                    <span>Ağ / CIDR</span>
+                    <input id="cidr" value="192.168.1.0/24" placeholder="192.168.1.0/24">
+                </label>
+                <label class="filter-field">
+                    <span>Filtre</span>
+                    <input id="deviceFilter" placeholder="IP, model veya durum ara">
+                </label>
+                <button type="button" id="scanBtn" class="primary">Ağı Tara</button>
+            </div>
+            <div class="scan-summary" id="scanSummary">Henüz tarama yapılmadı.</div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th></th>
+                        <th>IP Adresi</th>
+                        <th>SSH</th>
+                        <th>HTTP</th>
+                        <th>Durum</th>
+                        <th>Model</th>
+                    </tr>
+                    </thead>
+                    <tbody id="deviceRows">
+                    <tr><td colspan="6" class="empty">Henüz ağ taraması yapılmadı.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="grid" id="install">
+            <div class="panel">
+                <div class="section-title">
+                    <div>
+                        <h2>SSH Bağlantısı</h2>
+                        <p>Paneldeki tüm araçlar seçili Raspberry Pi ve bu SSH bilgilerini kullanır.</p>
+                    </div>
+                </div>
+
+                <label>
+                    <span>Seçili IP</span>
+                    <input id="selectedIp" readonly placeholder="Önce cihaz seçin">
+                </label>
+                <div class="two-col">
+                    <label>
+                        <span>Kullanıcı</span>
+                        <input id="sshUser" value="gymsoft" autocomplete="username">
+                    </label>
+                    <label>
+                        <span>SSH Parolası</span>
+                        <input id="sshPassword" type="password" autocomplete="current-password">
+                    </label>
+                </div>
+                <button type="button" id="verifyBtn" class="secondary">Raspberry Pi'yi Doğrula</button>
+                <div id="deviceInfo" class="info-box muted">Cihaz bilgisi henüz alınmadı.</div>
+            </div>
+
+            <div class="panel">
+                <div class="section-title">
+                    <div>
+                        <h2>GitHub & Kurulum</h2>
+                        <p>Private Turnike reposundan latest veya seçili release kurulabilir.</p>
+                    </div>
+                </div>
+
+                <label>
+                    <span>GitHub Personal Access Token</span>
+                    <div class="password-row">
+                        <input id="githubToken" type="password" autocomplete="off" placeholder="github_pat_...">
+                        <button type="button" id="toggleToken" class="ghost">Göster</button>
+                    </div>
+                </label>
+
+                <label>
+                    <span>HTML Kurulum Kaynağı</span>
+                    <select id="installMode">
+                        <option value="github_latest">GitHub Turnike Last Release</option>
+                        <option value="github_release">GitHub Release Versiyonu</option>
+                        <option value="existing">Mevcut /var/www/html Dosyaları</option>
+                    </select>
+                </label>
+
+                <div id="releaseArea" class="hidden">
+                    <div class="release-row">
+                        <label>
+                            <span>Release</span>
+                            <select id="releaseSelect"><option value="">Önce release listesini yükleyin</option></select>
+                        </label>
+                        <button type="button" id="loadReleasesBtn" class="secondary">Release'leri Getir</button>
+                    </div>
+                </div>
+
+                <label class="check-row">
+                    <input id="rebootAfter" type="checkbox" checked>
+                    <span>Kurulum sonunda Raspberry Pi'yi yeniden başlat</span>
+                </label>
+
+                <button type="button" id="installBtn" class="primary danger-safe">Kurulumu Başlat</button>
+                <p class="secret-note">Parola ve token tarayıcı depolamasına kaydedilmez.</p>
+            </div>
+        </section>
+
+        <section class="panel" id="securityTools">
+            <div class="section-title">
+                <div>
+                    <h2>Raspberry Pi Parola Değiştirme</h2>
+                    <p>Seçili cihazdaki aktif SSH kullanıcısının parolasını değiştirir. Başarılı olursa panel yeni parolayı mevcut oturum alanına geçirir.</p>
+                </div>
+                <span id="passwordState" class="status neutral">Hazır</span>
+            </div>
+            <div class="password-change-grid">
+                <label>
+                    <span>Yeni Parola</span>
+                    <input id="newSshPassword" type="password" autocomplete="new-password" placeholder="En az 8 karakter">
+                </label>
+                <label>
+                    <span>Yeni Parola Tekrar</span>
+                    <input id="newSshPasswordConfirm" type="password" autocomplete="new-password">
+                </label>
+                <button type="button" id="changePasswordBtn" class="danger">Parolayı Değiştir</button>
+            </div>
+            <div id="passwordResult" class="info-box muted">Parola yalnızca işlem sırasında kullanılır ve panel depolamasına kaydedilmez.</div>
+        </section>
+
+        <section class="panel" id="turnstileSetup">
+            <div class="section-title">
+                <div>
+                    <h2>Turnike Kurulumu / Lisans</h2>
+                    <p><code>daySet.php</code> ve <code>set.php</code> içerisindeki turnike kimliği, sıra numarası, lisans ve domain ayarlarını yönetir.</p>
+                </div>
+                <span id="turnSetupState" class="status neutral">Ayarlar okunmadı</span>
+            </div>
+
+            <div class="control-heading setup-heading">
+                <div>
+                    <h3>daySet.php</h3>
+                    <p><code>$turnXanahtar</code> yeni turnike ID'si, <code>$turnNumber</code> ise bu cihazın kaçıncı turnike olduğunu belirtir.</p>
+                </div>
+                <button type="button" id="loadTurnSetupBtn" class="secondary">Mevcut Ayarları Oku</button>
+            </div>
+            <div class="two-col">
+                <label>
+                    <span>Turnike ID / turnXanahtar</span>
+                    <input id="turnSetupId" placeholder="txdxky126" autocomplete="off">
+                </label>
+                <label>
+                    <span>Turnike Numarası</span>
+                    <input id="turnSetupNumber" type="number" min="1" max="9999" step="1" value="1">
+                </label>
+            </div>
+
+            <div class="control-heading setup-heading second-setup-heading">
+                <div>
+                    <h3>set.php</h3>
+                    <p>Lisans anahtarı hem <code>$anahtaR</code> hem <code>$salonadi</code> alanına; domain ise <code>$newDomain</code> alanına yazılır.</p>
+                </div>
+            </div>
+            <div class="two-col">
+                <label>
+                    <span>Lisans Anahtarı</span>
+                    <input id="turnLicenseKey" placeholder="gzyb6jcm" autocomplete="off">
+                </label>
+                <label>
+                    <span>Domain</span>
+                    <input id="turnDomain" placeholder="gymsoftx1.com" autocomplete="off">
+                </label>
+            </div>
+            <button type="button" id="saveTurnSetupBtn" class="primary">Turnike Kurulum Bilgilerini Kaydet</button>
+            <p class="secret-note">Kaydetmeden önce <code>daySet.php.manager.bak</code> ve <code>set.php.manager.bak</code> yedeği oluşturulur. PHP kuruluysa syntax kontrolü de yapılır.</p>
+            <div id="turnSetupResult" class="info-box muted">Henüz turnike kurulum ayarı okunmadı.</div>
+        </section>
+
+        <section class="panel" id="networkTools">
+            <div class="section-title">
+                <div>
+                    <h2>Ağ İşlemleri</h2>
+                    <p>Bağlantı profillerini görüntüle, IP/Gateway özetini al ve NetworkManager ayarlarını değiştir.</p>
+                </div>
+                <span id="networkState" class="status neutral">Hazır</span>
+            </div>
+
+            <div class="tool-button-row">
+                <button type="button" id="networkSummaryBtn" class="secondary">IP / Gateway Özeti</button>
+                <button type="button" id="networkProfilesBtn" class="secondary">Profilleri Listele</button>
+                <button type="button" id="networkActiveBtn" class="secondary">Aktif Bağlantı</button>
+                <button type="button" id="networkRefreshProfilesBtn" class="ghost">Profil Seçimini Yenile</button>
+            </div>
+
+            <div class="network-editor">
+                <label>
+                    <span>Bağlantı Profili</span>
+                    <select id="networkProfile"><option value="">Önce profilleri yükleyin</option></select>
+                </label>
+                <label>
+                    <span>Statik IP / CIDR</span>
+                    <input id="networkAddress" placeholder="192.168.1.41/24">
+                </label>
+                <label>
+                    <span>Gateway</span>
+                    <input id="networkGateway" placeholder="192.168.1.1">
+                </label>
+                <label>
+                    <span>DNS</span>
+                    <input id="networkDns" value="8.8.8.8,8.8.4.4">
+                </label>
+            </div>
+            <div class="warning-box">
+                IP, DHCP veya bağlantı profili değişikliği mevcut SSH bağlantısını kesebilir. Yeni IP'yi biliyorsanız işlemden sonra ağı yeniden tarayın.
+            </div>
+            <div class="tool-button-row">
+                <button type="button" id="networkStaticBtn" class="primary">Statik IP Uygula</button>
+                <button type="button" id="networkDhcpBtn" class="secondary">DHCP'ye Al</button>
+                <button type="button" id="networkDeleteBtn" class="danger">Profili Sil</button>
+            </div>
+            <pre id="networkOutput" class="tool-output">Ağ işlemi çıktısı burada görüntülenecek.</pre>
+        </section>
+
+        <section class="grid" id="healthTools">
+            <div class="panel">
+                <div class="section-title">
+                    <div>
+                        <h2>Raspberry Sağlık</h2>
+                        <p>Sıcaklık, voltaj, throttled, CPU, RAM, disk ve Wi-Fi bilgileri.</p>
+                    </div>
+                    <span id="healthState" class="status neutral">Hazır</span>
+                </div>
+                <button type="button" id="healthBtn" class="primary">Sağlık Bilgilerini Getir</button>
+                <pre id="healthOutput" class="tool-output">Henüz sağlık bilgisi alınmadı.</pre>
+            </div>
+
+            <div class="panel" id="systemTools">
+                <div class="section-title">
+                    <div>
+                        <h2>Sistem Bilgileri</h2>
+                        <p>Raspberry modeli, OS, kernel, mimari, hostname ve uptime.</p>
+                    </div>
+                    <span id="systemState" class="status neutral">Hazır</span>
+                </div>
+                <button type="button" id="systemBtn" class="primary">Sistem Bilgilerini Getir</button>
+                <pre id="systemOutput" class="tool-output">Henüz sistem bilgisi alınmadı.</pre>
+            </div>
+        </section>
+
+        <section class="panel" id="displayTools">
+            <div class="section-title">
+                <div>
+                    <h2>Ekran</h2>
+                    <p>wlr-randr/xrandr çıktısını görüntüle, ekranı normal yöne al veya labwc autostart dosyasını incele.</p>
+                </div>
+                <span id="displayState" class="status neutral">Hazır</span>
+            </div>
+            <div class="display-editor">
+                <label><span>Çözünürlük</span><select id="displayModeSelect"><option value="">Önce ekran modlarını oku</option></select></label>
+                <label><span>Yön</span><select id="displayDirection"><option value="normal">Normal</option><option value="left">Left</option><option value="right">Right</option><option value="inverted">Inverted</option></select></label>
+                <button type="button" id="displayModesBtn" class="secondary">Modları Oku</button>
+                <button type="button" id="displayApplyBtn" class="primary">Uygula + Kalıcı Yap</button>
+            </div>
+            <div class="tool-button-row">
+                <button type="button" id="displayInfoBtn" class="secondary">Ekran Bilgisini Getir</button>
+                <button type="button" id="displayNormalBtn" class="primary">Ekranı Normal Yöne Al</button>
+                <button type="button" id="displayLabwcBtn" class="secondary">labwc Autostart Göster</button>
+            </div>
+            <pre id="displayOutput" class="tool-output">Ekran işlemi çıktısı burada görüntülenecek.</pre>
+        </section>
+
+        <section class="grid visual-tools-grid" id="visualTools">
+            <div class="panel screenshot-panel">
+                <div class="section-title">
+                    <div><h2>Uzaktan Ekran Görüntüsü</h2><p>Wayland için grim, X11 için scrot kullanır.</p></div>
+                    <span id="screenshotState" class="status neutral">Hazır</span>
+                </div>
+                <div class="screen-preview" id="screenPreview"><span>Henüz ekran görüntüsü alınmadı.</span><img id="screenImage" alt="Raspberry Pi kiosk ekran görüntüsü"></div>
+                <button type="button" id="screenshotBtn" class="primary">Ekran Görüntüsü Al</button>
+            </div>
+
+            <div class="panel" id="gpioTools">
+                <div class="section-title">
+                    <div><h2>GPIO / Donanım Testi</h2><p>Pinler gc3.py dosyasından okunur; bobin testleri 0,6 saniye ile sınırlandırılmıştır.</p></div>
+                    <span id="gpioState" class="status neutral">Hazır</span>
+                </div>
+                <div class="gpio-pin-grid" id="gpioPins">
+                    <div><span>Switch</span><strong>--</strong></div><div><span>Bobin 1</span><strong>--</strong></div><div><span>Bobin 2</span><strong>--</strong></div><div><span>Buzzer</span><strong>--</strong></div><div><span>LED</span><strong>--</strong></div>
+                </div>
+                <div class="tool-button-row">
+                    <button type="button" id="gpioReadBtn" class="secondary">Pinleri Oku</button>
+                    <button type="button" id="gpioSwitchBtn" class="secondary">Switch Durumu</button>
+                    <button type="button" id="gpioBuzzerBtn" class="secondary">Buzzer Test</button>
+                    <button type="button" id="gpioLedBtn" class="secondary">LED Test</button>
+                    <button type="button" id="gpioCoil1Btn" class="danger">Bobin 1 Test</button>
+                    <button type="button" id="gpioCoil2Btn" class="danger">Bobin 2 Test</button>
+                </div>
+                <div id="gpioResult" class="info-box muted">Donanım testi henüz yapılmadı.</div>
+            </div>
+        </section>
+
+        <section class="panel" id="turnstile">
+            <div class="section-title">
+                <div>
+                    <h2>Turnike</h2>
+                    <p>Geçiş kontrolü, yön/süre/renk ayarları ile Apache, Chromium ve gc3.py servislerini yönetir.</p>
+                </div>
+                <span id="turnstileState" class="status neutral">Ayarlar okunmadı</span>
+            </div>
+
+            <div class="control-grid">
+                <div class="control-card">
+                    <h3>Anlık Kontrol</h3>
+                    <p>Bir geçiş izni verin veya aktif geçişi sonlandırıp turnikeyi kilitleyin.</p>
+                    <div class="action-row">
+                        <button type="button" id="openTurnstileBtn" class="primary">Geçiş İzni Ver</button>
+                        <button type="button" id="lockTurnstileBtn" class="danger">Turnikeyi Kilitle</button>
+                    </div>
+                    <div id="turnstileActionResult" class="info-box muted">Henüz bir komut gönderilmedi.</div>
+                </div>
+
+                <div class="control-card">
+                    <div class="control-heading">
+                        <div>
+                            <h3>Çalışma Ayarları</h3>
+                            <p>Değerler doğrudan Raspberry Pi üzerindeki Gymsoft dosyalarından okunur.</p>
+                        </div>
+                        <button type="button" id="loadTurnstileConfigBtn" class="secondary">Ayarları Oku</button>
+                    </div>
+
+                    <div class="two-col">
+                        <label>
+                            <span>Geçiş Yönü</span>
+                            <select id="turnDirection">
+                                <option value="sag">Sağ</option>
+                                <option value="sol">Sol</option>
+                                <option value="cift">Çift</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Geçiş Süresi (saniye)</span>
+                            <input id="transitionSeconds" type="number" min="1" max="60" step="1" value="9">
+                        </label>
+                    </div>
+
+                    <label>
+                        <span>Turnike Ekran Vurgu Rengi</span>
+                        <div class="color-row">
+                            <input id="turnColor" type="color" value="#f7fff8">
+                            <input id="turnColorHex" value="#f7fff8" maxlength="7" spellcheck="false">
+                            <span id="colorPreview" class="color-preview" aria-label="Renk önizleme"></span>
+                        </div>
+                    </label>
+
+                    <button type="button" id="saveTurnstileConfigBtn" class="primary">Ayarları Kaydet</button>
+                    <p class="secret-note">İlk değişiklikte gc3.py, gc3-startup.py ve renk.php için <code>.manager.bak</code> yedeği oluşturulur.</p>
+                </div>
+            </div>
+
+            <div class="control-card service-card">
+                <div class="control-heading">
+                    <div>
+                        <h3>Apache / Chromium / gc3.py</h3>
+                        <p>Turnike servislerinin durumunu kontrol edin veya gerektiğinde yeniden başlatın.</p>
+                    </div>
+                </div>
+                <div class="tool-button-row">
+                    <button type="button" id="turnServiceStatusBtn" class="secondary">Durumları Kontrol Et</button>
+                    <button type="button" id="apacheRestartBtn" class="secondary">Apache Restart</button>
+                    <button type="button" id="chromiumRestartBtn" class="secondary">Chromium Restart</button>
+                    <button type="button" id="gc3RestartBtn" class="secondary">gc3.py Restart</button>
+                </div>
+                <pre id="turnServiceOutput" class="tool-output">Servis durumları henüz kontrol edilmedi.</pre>
+            </div>
+        </section>
+
+        <section class="panel" id="diagnoseTools">
+            <div class="section-title">
+                <div>
+                    <h2>Hızlı Arıza Tespiti</h2>
+                    <p>Cihaz, sağlık, ağ, Apache, kiosk, gc3.py ve ekran bilgilerini tek raporda toplar.</p>
+                </div>
+                <span id="diagnoseState" class="status neutral">Hazır</span>
+            </div>
+            <button type="button" id="diagnoseBtn" class="primary">Hızlı Arıza Tespiti Çalıştır</button>
+            <pre id="diagnoseOutput" class="tool-output diagnose-output">Henüz tanılama çalıştırılmadı.</pre>
+        </section>
+
+        <section class="panel" id="maintenanceTools">
+            <div class="section-title">
+                <div><h2>Log Merkezi & Yedekleme</h2><p>Servis loglarını tek yerden görüntüleyin ve kritik Gymsoft ayarlarının yedeğini indirin.</p></div>
+                <span id="maintenanceState" class="status neutral">Hazır</span>
+            </div>
+            <div class="maintenance-row">
+                <label><span>Log Kaynağı</span><select id="logKind"><option value="apache">Apache</option><option value="chromium">Chromium</option><option value="gc3">gc3.py</option><option value="kernel">Kernel</option><option value="display">Ekran</option><option value="network">NetworkManager</option></select></label>
+                <button type="button" id="loadLogBtn" class="secondary">Logu Getir</button>
+                <button type="button" id="downloadBackupBtn" class="primary">Konfigürasyon Yedeği İndir</button>
+            </div>
+            <pre id="maintenanceOutput" class="tool-output">Log seçip “Logu Getir” butonuna basın.</pre>
+        </section>
+
+        <section class="panel" id="logs">
+            <div class="section-title">
+                <div>
+                    <h2>Kurulum Logu</h2>
+                    <p>Uzaktaki Raspberry Pi üzerinde çalışan kurulum script çıktısı.</p>
+                </div>
+                <span id="jobState" class="status neutral">Bekliyor</span>
+            </div>
+            <pre id="logBox">Kurulum başlatıldığında loglar burada görüntülenecek.</pre>
+        </section>
+    </main>
+</div>
+<script src="./config.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
