@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gymsoft Raspberry Manager v11</title>
+    <title>Gymsoft Raspberry Manager v12</title>
     <link rel="stylesheet" href="./app.css">
 </head>
 <body>
@@ -33,7 +33,7 @@
             <a href="#settings" data-page-link="settings"><span>⚙</span><div><strong>Ayarlar</strong><small>Güvenlik & agent</small></div></a>
         </nav>
         <div class="sidebar-note">
-            <strong>GYMSOFT Manager v9</strong>
+            <strong>GYMSOFT Manager v12</strong>
             <span id="sidebarModeText">Gerçek cihaz modu</span>
             <span class="sidebar-agent" id="sidebarAgentText">Agent bekleniyor</span>
         </div>
@@ -75,7 +75,7 @@
                 <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
                 <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
                 <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
-                <span class="badge">v11 Live Device</span>
+                <span class="badge">v12 Service Center</span>
             </div>
         </header>
 
@@ -96,6 +96,7 @@
                 <div class="metric-tile"><span>Disk</span><strong id="dashDisk">--%</strong><small>kök dosya sistemi</small></div>
                 <div class="metric-tile"><span>Apache</span><strong id="dashApache">--</strong><small>web servisi</small></div>
                 <div class="metric-tile"><span>gc3.py</span><strong id="dashGc3">--</strong><small>turnike kontrolü</small></div>
+                <div class="metric-tile health-score-tile"><span>Sağlık Skoru</span><strong id="dashHealthScore">--/100</strong><small id="dashHealthReasons">canlı değerlendirme</small></div>
             </div>
 
             <div class="dashboard-grid">
@@ -227,6 +228,12 @@
                     <span>Kurulum sonunda Raspberry Pi'yi yeniden başlat</span>
                 </label>
 
+                <div class="precheck-box">
+                    <div class="section-title compact-title"><div><h3>Kurulum Öncesi Kontrol</h3><p>İnternet, gateway, DNS, disk, Raspberry modeli ve GitHub erişimini kurulumdan önce doğrular.</p></div><span id="precheckState" class="status neutral">Çalıştırılmadı</span></div>
+                    <button type="button" id="precheckBtn" class="secondary full-button">Kuruluma Uygunluğu Kontrol Et</button>
+                    <div id="precheckResult" class="precheck-grid"><div class="info-box muted">Kurulumdan önce bu kontrolü çalıştırmanız önerilir.</div></div>
+                </div>
+
                 <button type="button" id="installBtn" class="primary danger-safe">Kurulumu Başlat</button>
                 <p class="secret-note">Parola ve token tarayıcı depolamasına kaydedilmez.</p>
             </div>
@@ -337,7 +344,11 @@
                 </label>
             </div>
             <div class="warning-box">
-                IP, DHCP veya bağlantı profili değişikliği mevcut SSH bağlantısını kesebilir. Yeni IP'yi biliyorsanız işlemden sonra ağı yeniden tarayın.
+                Statik IP değişikliğinde v12 güvenli değişim kullanır: yeni IP 90 saniye içinde doğrulanmazsa eski ağ ayarı otomatik geri yüklenir.
+            </div>
+            <div class="tool-button-row">
+                <button type="button" id="networkCheckIpBtn" class="secondary">Yeni IP Boş mu Kontrol Et</button>
+                <span id="networkIpCheckState" class="status neutral">Kontrol edilmedi</span>
             </div>
             <div class="tool-button-row">
                 <button type="button" id="networkStaticBtn" class="primary">Statik IP Uygula</button>
@@ -518,7 +529,12 @@
                     <div><small>Güncel</small><strong id="demoLatestRelease">--</strong></div>
                 </div>
                 <button type="button" id="demoReleaseBtn" class="secondary full-button">Sürümü Kontrol Et</button>
+                <div class="release-actions-v12">
+                    <button type="button" id="releaseHistoryBtn" class="secondary">Release Geçmişi</button>
+                    <button type="button" id="releaseRollbackBtn" class="danger">Önceki Sürüme Dön</button>
+                </div>
                 <div id="demoReleaseResult" class="mini-result">Bir Raspberry doğrulayın. Private GitHub Latest kontrolü için GitHub token alanını doldurun.</div>
+                <div id="releaseHistoryResult" class="release-history-list"></div>
             </div>
             <div class="panel experience-card activity-card">
                 <div class="section-title compact-title"><div><h2>Son İşlemler</h2><p>Yalnızca seçili Raspberry üzerinde bu Agent ile yaptığınız işlemler gösterilir.</p></div><button type="button" id="demoClearAuditBtn" class="ghost compact">Yenile</button></div>
@@ -573,13 +589,17 @@
         </section>
 
         <section class="panel app-page-section" id="preferencesExperience" data-page="settings">
-            <div class="section-title"><div><h2>Arayüz & Agent Ayarları</h2><p>Panel davranışını sadeleştiren kullanıcı tercihleri.</p></div><span class="status success">v11</span></div>
+            <div class="section-title"><div><h2>Arayüz & Agent Ayarları</h2><p>Panel davranışını sadeleştiren kullanıcı tercihleri.</p></div><span class="status success">v12</span></div>
             <div class="settings-grid">
                 <label class="setting-row"><div><strong>Deneyim Modu</strong><small>Gerçek Raspberry olmadan yeni ekranları deneyin.</small></div><input type="checkbox" id="demoModeSwitch"></label>
                 <label class="setting-row"><div><strong>Kritik işlem onayı</strong><small>Reboot, GPIO ve IP değişikliklerinde onay sor.</small></div><input type="checkbox" id="confirmCriticalSwitch" checked></label>
                 <label class="setting-row"><div><strong>Canlı yenileme</strong><small>Seçili cihaz sağlık verilerini otomatik yenile.</small></div><input type="checkbox" id="liveRefreshSwitch" checked></label>
             </div>
             <div class="agent-info-card"><span>Local Agent</span><strong id="settingsAgentVersion">Bağlantı bekleniyor</strong><small>Web arayüzü SSH işlemlerini doğrudan yapmaz; GymsoftAgent.exe üzerinden çalışır.</small></div>
+            <div class="agent-update-card">
+                <div><span>Agent Güncelleme</span><strong id="agentUpdateVersion">Kontrol edilmedi</strong><small id="agentUpdateNote">GitHub Pages üzerindeki agent.json manifesti kullanılır.</small></div>
+                <div class="tool-button-row"><button type="button" id="agentUpdateCheckBtn" class="secondary">Güncellemeyi Kontrol Et</button><button type="button" id="agentUpdateBtn" class="primary" disabled>Agent'ı Güncelle</button></div>
+            </div>
         </section>
 
         <section class="panel app-page-section" id="diagnoseTools" data-page="diagnostics">
@@ -603,6 +623,7 @@
                 <label><span>Log Kaynağı</span><select id="logKind"><option value="apache">Apache</option><option value="chromium">Chromium</option><option value="gc3">gc3.py</option><option value="kernel">Kernel</option><option value="display">Ekran</option><option value="network">NetworkManager</option></select></label>
                 <button type="button" id="loadLogBtn" class="secondary">Logu Getir</button>
                 <button type="button" id="downloadBackupBtn" class="primary">Konfigürasyon Yedeği İndir</button>
+                <button type="button" id="supportPackageBtn" class="primary">Teknik Destek Paketi Oluştur</button>
             </div>
             <pre id="maintenanceOutput" class="tool-output">Log seçip “Logu Getir” butonuna basın.</pre>
         </section>

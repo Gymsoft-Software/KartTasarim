@@ -748,3 +748,17 @@ button.demo-active { border-color:var(--yellow) !important; background:rgba(242,
     .live-status-bar { position: static; top: auto; }
     .github-agent-banner { position: sticky; top: 0; }
 }
+
+/* v12 Service Center */
+.precheck-box{margin:18px 0;padding:16px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.018)}
+.precheck-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.precheck-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel-2,#101318)}
+.precheck-item .check-icon{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;font-weight:900;flex:0 0 auto}
+.precheck-item.ok .check-icon{background:rgba(66,196,107,.15);color:#5be282}.precheck-item.bad .check-icon{background:rgba(255,90,90,.14);color:#ff7474}.precheck-item.optional .check-icon{background:rgba(242,195,24,.12);color:var(--yellow)}
+.precheck-item strong{display:block}.precheck-item small{display:block;color:var(--muted);margin-top:2px}.precheck-summary{grid-column:1/-1;padding:12px;border-radius:10px;font-weight:800}.precheck-summary.ready{background:rgba(66,196,107,.12);color:#67e58c}.precheck-summary.blocked{background:rgba(255,90,90,.12);color:#ff7c7c}
+.release-actions-v12{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.release-history-list{display:grid;gap:6px;margin-top:10px}.release-history-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--border);border-radius:9px}.release-history-item small{color:var(--muted)}
+.health-score-tile strong{color:var(--yellow)}
+.agent-update-card{margin-top:12px;display:flex;justify-content:space-between;gap:14px;align-items:center;padding:14px;border:1px solid var(--border);border-radius:12px}.agent-update-card span,.agent-update-card small{display:block}.agent-update-card small{color:var(--muted);margin-top:3px}
+.alarm-fix-btn{margin-top:7px;padding:7px 10px!important;font-size:11px!important;min-height:unset!important}
+.safe-network-progress{margin-top:8px;padding:10px;border:1px dashed var(--border);border-radius:9px}
+@media(max-width:760px){.precheck-grid{grid-template-columns:1fr}.release-actions-v12{grid-template-columns:1fr}.agent-update-card{align-items:stretch;flex-direction:column}}

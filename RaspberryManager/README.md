@@ -1,14 +1,27 @@
-# Gymsoft Raspberry Manager v11 — Live Device Focus
+# Gymsoft Raspberry Manager v12 Service Center
 
-Bu sürüm kullanıcı geri bildirimine göre sadeleştirildi:
+GitHub Pages üzerinde çalışan web arayüzüdür. SSH, ağ taraması ve Raspberry işlemleri yerel bilgisayardaki `GymsoftAgent.exe` üzerinden yapılır.
 
-- Üstteki Agent banner ve canlı cihaz çubuğu artık kaydırmada üst üste binmez.
-- Cihaz tarama ve SSH doğrulama aynı **Cihazlar** sayfasındadır.
-- Müşteri/Salon/Cihaz envanteri kaldırılmıştır.
-- Alarm Merkezi yalnızca seçili ve doğrulanmış Raspberry'nin canlı alarmlarını gösterir.
-- Son İşlemler yalnızca seçili IP için Agent audit kayıtlarını gösterir.
-- Release Durumu seçili Raspberry'deki kurulu release işaretçisini private GitHub reposunun Latest Release'i ile karşılaştırır.
-- Private repo karşılaştırması için GitHub token yalnızca istek sırasında kullanılır, kaydedilmez.
-- v11 ile GitHub üzerinden yapılan kurulumlarda release tag Raspberry üzerinde `/var/lib/gymsoft/release-version` dosyasına kaydedilir.
+## v12 öne çıkanlar
 
-> Eski kurulumlarda sürüm işaretçisi yoksa `Kurulu sürüm bilinmiyor` gösterilir. v11 ile yapılan sonraki GitHub kurulumu bunu otomatik oluşturur.
+- Kurulum Öncesi Kontrol
+- Release otomatik yedek / geçmiş / rollback
+- Seçili cihaz sağlık skoru
+- Alarm kartından Apache, gc3.py ve kiosk düzeltme aksiyonları
+- Güvenli statik IP değişimi ve 90 saniyelik otomatik rollback
+- Yeni IP çakışma/kullanım kontrolü
+- Teknik Destek Paketi
+- Agent update manifest altyapısı
+
+## Agent otomatik güncelleme kanalı
+
+Web klasöründeki:
+
+```text
+agent.json
+downloads/GymsoftAgent.exe
+```
+
+kullanılır.
+
+Yeni Agent sürümünü yayınlamak için yeni EXE'yi `downloads/GymsoftAgent.exe` adıyla yükleyin ve `agent.json` içindeki `version` değerini yükseltin.

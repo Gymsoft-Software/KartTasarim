@@ -130,6 +130,8 @@ function resetLiveStatus() {
     if ($("dashDisk")) $("dashDisk").textContent = "--%";
     if ($("dashApache")) $("dashApache").textContent = "--";
     if ($("dashGc3")) $("dashGc3").textContent = "--";
+    if ($("dashHealthScore")) $("dashHealthScore").textContent = "--/100";
+    if ($("dashHealthReasons")) $("dashHealthReasons").textContent = "canlı değerlendirme";
     if ($("dashHealthBadge")) { $("dashHealthBadge").textContent = "BEKLİYOR"; $("dashHealthBadge").className = "dashboard-health"; }
 }
 
@@ -201,6 +203,8 @@ function updateDashboard(status) {
     $("dashDisk").textContent = `${disk.toFixed(1)}%`;
     $("dashApache").textContent = status.apache_active ? "AKTİF" : "KAPALI";
     $("dashGc3").textContent = status.gc3_active ? "AKTİF" : "KAPALI";
+    if ($("dashHealthScore")) $("dashHealthScore").textContent = `${Number(status.health_score ?? 0).toFixed(0)}/100`;
+    if ($("dashHealthReasons")) $("dashHealthReasons").textContent = (status.health_reasons || []).slice(0,2).join(" · ") || "Sorun tespit edilmedi";
     $("dashDeviceName").textContent = `${status.hostname || "Raspberry"} · ${selectedDevice}`;
     $("dashTempNote").textContent = status.throttled && status.throttled !== "throttled=0x0" && status.throttled !== "0x0" ? status.throttled : "normal çalışma";
 
@@ -209,7 +213,7 @@ function updateDashboard(status) {
     const warn = throttleBad || !status.gc3_active || (temp !== null && temp >= 70) || cpu >= 85 || disk >= 90;
     const badge = $("dashHealthBadge");
     badge.className = `dashboard-health ${bad ? "bad" : warn ? "warn" : "ok"}`;
-    badge.textContent = bad ? "KRİTİK" : warn ? "DİKKAT" : "NORMAL";
+    badge.textContent = `${bad ? "KRİTİK" : warn ? "DİKKAT" : "NORMAL"}${status.health_score !== undefined ? ` · ${Number(status.health_score).toFixed(0)}/100` : ""}`;
     setStatus($("historyState"), "Canlı", "success");
 
     if (temp !== null) pushHistory(liveHistory.temp, temp);
@@ -358,6 +362,34 @@ $("loadReleasesBtn").addEventListener("click", async () => {
     }
 });
 
+
+let lastPrecheck = { device:null, ready:false, at:0 };
+function renderPrecheck(data) {
+    const box=$("precheckResult"), state=$("precheckState");
+    if(!box || !state) return;
+    const checks=Array.isArray(data.checks)?data.checks:[];
+    box.innerHTML=checks.map(c=>`<div class="precheck-item ${c.ok?'ok':c.required?'bad':'optional'}"><span class="check-icon">${c.ok?'✓':c.required?'×':'!'}</span><div><strong>${escapeHtml(c.label)}</strong><small>${escapeHtml(c.detail||'')}</small></div></div>`).join("") + `<div class="precheck-summary ${data.ready?'ready':'blocked'}">${data.ready?'✓ KURULUMA HAZIR':'✕ KURULUM ÖNERİLMİYOR · Zorunlu kontrollerde sorun var'}</div>`;
+    state.className=`status ${data.ready?'success':'error'}`; state.textContent=data.ready?'HAZIR':'SORUN VAR';
+}
+async function runPrecheck({silent=false}={}) {
+    if(window.GYMSOFT_DEMO_MODE){
+        const data={ready:true,checks:[{label:'Raspberry doğrulaması',ok:true,detail:'Raspberry Pi 5 Model B',required:true},{label:'İnternet erişimi',ok:true,detail:'Dış bağlantı var',required:true},{label:'Gateway',ok:true,detail:'192.168.1.1',required:true},{label:'DNS çözümleme',ok:true,detail:'api.github.com çözümleniyor',required:true},{label:'Boş disk alanı',ok:true,detail:'18.4 GB boş',required:true},{label:'GitHub private repo',ok:true,detail:'Demo erişimi başarılı',required:true},{label:'Chromium',ok:true,detail:'Kurulu',required:false}]};
+        renderPrecheck(data); lastPrecheck={device:selectedDevice||'demo',ready:true,at:Date.now()}; return true;
+    }
+    const target=requireTurnstileTarget();
+    const btn=$("precheckBtn"); if(btn)btn.disabled=true;
+    setStatus($("precheckState"),"Kontrol ediliyor","running");
+    try{
+        const data=await api('/api/precheck',{method:'POST',body:JSON.stringify({...target,github_token:$("githubToken")?.value.trim()||'',install_mode:$("installMode")?.value||'github_latest'})});
+        renderPrecheck(data); lastPrecheck={device:selectedDevice,ready:!!data.ready,at:Date.now()};
+        if(!silent) showToast(data.ready?'Cihaz kuruluma hazır.':'Kurulum öncesi zorunlu kontrollerde sorun var.',data.ready?'success':'error','Kurulum Öncesi Kontrol');
+        return !!data.ready;
+    }catch(err){
+        setStatus($("precheckState"),"Hata","error"); $("precheckResult").innerHTML=`<div class="info-box">${escapeHtml(err.message)}</div>`; if(!silent)showToast(err.message,'error','Ön Kontrol'); return false;
+    }finally{if(btn)btn.disabled=false;}
+}
+$("precheckBtn")?.addEventListener('click',()=>runPrecheck());
+
 $("installBtn").addEventListener("click", async () => {
     if (!selectedDevice) return alert("Önce kurulum yapılacak cihazı seçin.");
     if (!verifiedDevices[selectedDevice]?.is_raspberry) {
@@ -370,6 +402,11 @@ $("installBtn").addEventListener("click", async () => {
     }
     if (mode === "github_release" && !$("releaseSelect").value) {
         return alert("Bir release seçin.");
+    }
+
+    if (!window.GYMSOFT_DEMO_MODE) {
+        const ready = await runPrecheck({silent:true});
+        if (!ready) { showToast("Kurulum başlatılmadı. Ön kontroldeki zorunlu sorunları çözün.","error","Kurulum Engellendi"); return; }
     }
 
     if (!await uiConfirm(`${selectedDevice} cihazına Gymsoft kurulumu başlatılsın mı?`)) return;
@@ -749,49 +786,59 @@ $("networkActiveBtn").addEventListener("click", () => runTextTool({
     payload: { view: "active" },
 }).catch(() => {}));
 
+async function checkNetworkIp({silent=false}={}) {
+    const raw=$("networkAddress")?.value.trim()||"";
+    if(window.GYMSOFT_DEMO_MODE){setStatus($("networkIpCheckState"),"IP BOŞ","success");if(!silent)showToast(`${raw||"192.168.1.50"} demo ağında boş görünüyor.`,"success","IP Kontrolü");return true;}
+    if(!raw) { if(!silent)showToast("Önce yeni IP/CIDR girin.","warning","IP Kontrolü"); return false; }
+    try{
+        setStatus($("networkIpCheckState"),"Kontrol ediliyor","running");
+        const data=await api('/api/tools/network/check-ip',{method:'POST',body:JSON.stringify({ip:raw})});
+        setStatus($("networkIpCheckState"),data.available?'IP BOŞ':'KULLANIMDA',data.available?'success':'error');
+        if(!silent)showToast(data.detail,data.available?'success':'error','IP Kontrolü');
+        return !!data.available;
+    }catch(err){setStatus($("networkIpCheckState"),"Hata","error"); if(!silent)showToast(err.message,'error','IP Kontrolü'); return false;}
+}
+$("networkCheckIpBtn")?.addEventListener('click',()=>checkNetworkIp());
+const sleepMs=(ms)=>new Promise(r=>setTimeout(r,ms));
+async function confirmSafeNetworkChange(data,target){
+    if(!data?.safe_change) return;
+    const oldIp=selectedDevice, newIp=data.new_ip, txid=data.txid;
+    $("networkOutput").textContent += `\n\nYeni IP ${newIp} doğrulanıyor. ${data.rollback_seconds||90} saniye içinde doğrulanamazsa eski ayar otomatik geri gelecek…`;
+    for(let i=0;i<12;i++){
+        await sleepMs(i===0?3500:4000);
+        try{
+            const verify=await api('/api/device-info',{method:'POST',body:JSON.stringify({ip:newIp,username:target.username,password:target.password})});
+            if(verify.info?.is_raspberry){
+                await api('/api/tools/network/confirm',{method:'POST',body:JSON.stringify({ip:newIp,username:target.username,password:target.password,txid})});
+                selectedDevice=newIp; $("selectedIp").value=newIp; verifiedDevices[newIp]=verify.info; delete verifiedDevices[oldIp];
+                $("networkOutput").textContent += `\n✓ Yeni IP doğrulandı: ${newIp}\n✓ Otomatik rollback iptal edildi.`;
+                setStatus($("networkState"),"Yeni IP doğrulandı","success"); showToast(`${oldIp} → ${newIp} başarıyla doğrulandı. Rollback iptal edildi.`,`success`,`Güvenli IP Değişimi`);
+                showDeviceInfo(verify.info); scheduleLiveStatus(1000); refreshRealActivity(); return true;
+            }
+        }catch(_err){}
+    }
+    $("networkOutput").textContent += `\n⚠ Yeni IP doğrulanamadı. Raspberry üzerindeki otomatik geri dönüş mekanizması eski ayarı geri yükleyecek.`;
+    setStatus($("networkState"),"Rollback bekleniyor","error"); showToast("Yeni IP doğrulanamadı. 90 saniyelik güvenlik süresi sonunda eski ağ ayarı geri yüklenir.","warning","Güvenli IP Değişimi"); return false;
+}
 async function changeNetwork(action) {
     const profile = $("networkProfile").value;
     if (!profile) return alert("Önce NetworkManager bağlantı profilini seçin.");
-
-    let message = "";
-    if (action === "static") {
-        if (!$("networkAddress").value.trim() || !$("networkGateway").value.trim()) {
-            return alert("Statik IP için IP/CIDR ve Gateway alanları zorunludur.");
-        }
-        message = `${selectedDevice} üzerindeki ${profile} profili statik IP'ye geçirilecek. SSH bağlantısı kesilebilir. Devam edilsin mi?`;
-    } else if (action === "dhcp") {
-        message = `${selectedDevice} üzerindeki ${profile} profili DHCP'ye alınacak. Cihazın IP adresi değişebilir ve SSH bağlantısı kesilebilir. Devam edilsin mi?`;
-    } else {
-        message = `${selectedDevice} üzerindeki ${profile} bağlantı profili SİLİNECEK. Aktif profilse bağlantı tamamen kesilebilir. Devam edilsin mi?`;
-    }
-    if (!await uiConfirm(message)) return;
-
-    const buttonId = action === "static" ? "networkStaticBtn" : action === "dhcp" ? "networkDhcpBtn" : "networkDeleteBtn";
-    try {
-        const target = requireToolTarget();
-        const btn = $(buttonId);
-        btn.disabled = true;
-        setStatus($("networkState"), "Uygulanıyor", "running");
-        $("networkOutput").textContent = "Ağ ayarı Raspberry Pi'ye gönderiliyor…";
-        const data = await api("/api/tools/network/change", {
-            method: "POST",
-            body: JSON.stringify({
-                ...target,
-                action,
-                profile,
-                address: $("networkAddress").value.trim(),
-                gateway: $("networkGateway").value.trim(),
-                dns: $("networkDns").value.trim(),
-            }),
-        });
-        $("networkOutput").textContent = data.output || "Ağ ayarı uygulandı.";
-        setStatus($("networkState"), "Gönderildi", "success");
-    } catch (err) {
-        $("networkOutput").textContent = `Hata: ${err.message}\n\nNot: Ağ değişikliği uygulanmışsa SSH bağlantısı işlem sırasında kesilmiş olabilir.`;
-        setStatus($("networkState"), "Bağlantı değişti / Hata", "error");
-    } finally {
-        $(buttonId).disabled = false;
-    }
+    let message="";
+    if(action==="static"){
+        if(!$("networkAddress").value.trim()||!$("networkGateway").value.trim())return alert("Statik IP için IP/CIDR ve Gateway alanları zorunludur.");
+        const free=await checkNetworkIp({silent:true}); if(!free){showToast("Yeni IP kullanımda görünüyor. Statik IP işlemi durduruldu.","error","IP Çakışması");return;}
+        message=`${selectedDevice} üzerindeki ${profile} profili güvenli statik IP değişimi ile güncellenecek. Yeni IP doğrulanmazsa eski ayar otomatik geri yüklenecek. Devam edilsin mi?`;
+    }else if(action==="dhcp") message=`${selectedDevice} üzerindeki ${profile} profili DHCP'ye alınacak. Cihazın IP adresi değişebilir. Devam edilsin mi?`;
+    else message=`${selectedDevice} üzerindeki ${profile} bağlantı profili SİLİNECEK. Aktif profilse bağlantı tamamen kesilebilir. Devam edilsin mi?`;
+    if(!await uiConfirm(message))return;
+    const buttonId=action==="static"?"networkStaticBtn":action==="dhcp"?"networkDhcpBtn":"networkDeleteBtn";
+    try{
+        const target=requireToolTarget(),btn=$(buttonId);btn.disabled=true;setStatus($("networkState"),"Uygulanıyor","running");$("networkOutput").textContent="Ağ ayarı Raspberry Pi'ye gönderiliyor…";
+        const data=await api('/api/tools/network/change',{method:'POST',body:JSON.stringify({...target,action,profile,address:$("networkAddress").value.trim(),gateway:$("networkGateway").value.trim(),dns:$("networkDns").value.trim()})});
+        $("networkOutput").textContent=data.output||"Ağ ayarı uygulandı.";setStatus($("networkState"),"Gönderildi","success");
+        if(action==="static"&&data.safe_change) await confirmSafeNetworkChange(data,target);
+    }catch(err){$("networkOutput").textContent=`Hata: ${err.message}\n\nAğ değişikliği başlamışsa güvenli rollback mekanizması eski ayarı geri yüklemeye çalışacaktır.`;setStatus($("networkState"),"Hata","error");}
+    finally{$(buttonId).disabled=false;}
 }
 
 $("networkStaticBtn").addEventListener("click", () => changeNetwork("static"));
@@ -1070,6 +1117,17 @@ $("downloadBackupBtn")?.addEventListener("click", async () => {
     }
 });
 
+
+function downloadBase64Archive(data, fallback="gymsoft-package.tar.gz") {
+    const binary=atob(data.archive), bytes=new Uint8Array(binary.length); for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    const blob=new Blob([bytes],{type:"application/gzip"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=data.filename||fallback;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+}
+$("supportPackageBtn")?.addEventListener("click",async()=>{
+    const btn=$("supportPackageBtn");
+    if(window.GYMSOFT_DEMO_MODE){$("maintenanceOutput").textContent="Deneyim Modu: sistem, ağ, sağlık ve servis loglarını içeren gymsoft-support-demo.tar.gz paketi simüle edildi.";setStatus($("maintenanceState"),"Demo paket hazır","success");showToast("Teknik destek paketi oluşturma akışı simüle edildi.","success","Destek Paketi");return;}
+    try{const target=requireToolTarget();btn.disabled=true;setStatus($("maintenanceState"),"Destek paketi hazırlanıyor","running");const data=await api('/api/tools/support-package',{method:'POST',body:JSON.stringify(target)});downloadBase64Archive(data,'gymsoft-support.tar.gz');$("maintenanceOutput").textContent=`Teknik destek paketi hazırlandı: ${data.filename}\n\nİçerik: sistem, ağ, sağlık, servis, Apache/Chromium/gc3/kernel logları, ekran ve Gymsoft configleri.`;setStatus($("maintenanceState"),"Destek paketi indirildi","success");showToast(data.filename,'success','Teknik Destek Paketi');}catch(err){setStatus($("maintenanceState"),"Hata","error");$("maintenanceOutput").textContent=`Hata: ${err.message}`;showToast(err.message,'error','Destek Paketi');}finally{btn.disabled=false;}
+});
+
 async function rebootDevice(buttonId = "quickRebootBtn") {
     const btn = $(buttonId);
     try {
@@ -1185,8 +1243,12 @@ function renderLiveAlarms(alarms = [], connectionError = "") {
     }
     list.innerHTML = items.map(item => {
         const level = ["critical","warning","info"].includes(item.level) ? item.level : "info";
-        return `<div class="alarm-item"><span class="alarm-dot ${level}"></span><div><strong>${escapeHtml(item.title || "Uyarı")}</strong><small>${escapeHtml(item.detail || "")}</small></div><time>${escapeHtml(item.time || "şimdi")}</time></div>`;
+        const remedy = item.remedy ? `<button type="button" class="secondary alarm-fix-btn" data-alarm-remedy="${escapeHtml(item.remedy)}">${escapeHtml(item.remedy_label || "Sorunu Çöz")}</button>` : "";
+        return `<div class="alarm-item"><span class="alarm-dot ${level}"></span><div><strong>${escapeHtml(item.title || "Uyarı")}</strong><small>${escapeHtml(item.detail || "")}</small>${remedy}</div><time>${escapeHtml(item.time || "şimdi")}</time></div>`;
     }).join("");
+    list.querySelectorAll("[data-alarm-remedy]").forEach(btn=>btn.addEventListener("click", async()=>{
+        try{const target=requireToolTarget(), action=btn.dataset.alarmRemedy; btn.disabled=true; const data=await api("/api/tools/turnstile-service",{method:"POST",body:JSON.stringify({...target,action})}); showToast(data.output||"Düzeltme uygulandı.","success","Alarm Çözümü"); setTimeout(()=>refreshLiveStatus(),800);}catch(err){showToast(err.message,"error","Alarm Çözümü");}finally{btn.disabled=false;}
+    }));
 }
 
 function renderRealActivity(items = []) {
@@ -1283,6 +1345,24 @@ async function refreshReleaseStatus({silent=false}={}) {
         $("demoReleaseResult").textContent=`Sürüm kontrolü başarısız: ${err.message}`;
     }
 }
+
+
+let lastReleaseBackups=[];
+function renderReleaseHistory(data){
+    const area=$("releaseHistoryResult"); if(!area)return; lastReleaseBackups=data.backups||[];
+    const items=data.items||[];
+    if(!items.length&&!lastReleaseBackups.length){area.innerHTML='<div class="mini-result">Henüz release geçmişi/yedeği yok.</div>';return;}
+    area.innerHTML=items.slice(0,6).map(i=>`<div class="release-history-item"><small>${escapeHtml((i.timestamp||'').replace('T',' ').slice(0,19))}</small><strong>${escapeHtml(i.event||'-')} · ${escapeHtml(i.tag||'-')}</strong><small>${escapeHtml(i.note||'')}</small></div>`).join('') + (lastReleaseBackups.length?`<div class="mini-result">Rollback yedeği: ${escapeHtml(lastReleaseBackups[0].split('/').pop())}</div>`:'');
+}
+async function loadReleaseHistory(){
+    if(window.GYMSOFT_DEMO_MODE){renderReleaseHistory({items:[{timestamp:new Date().toISOString(),event:'install',tag:'v23.0',note:'from=v22.2'},{timestamp:new Date(Date.now()-86400000).toISOString(),event:'backup',tag:'v22.2',note:'demo'}],backups:['/var/lib/gymsoft/backups/demo__v22.2.tar.gz']});return;}
+    try{const target=requireToolTarget();const data=await api('/api/release/history',{method:'POST',body:JSON.stringify(target)});renderReleaseHistory(data);showToast(`${(data.items||[]).length} geçmiş kaydı okundu.`,'success','Release Geçmişi');}catch(err){showToast(err.message,'error','Release Geçmişi');}
+}
+$("releaseHistoryBtn")?.addEventListener('click',loadReleaseHistory);
+$("releaseRollbackBtn")?.addEventListener('click',async()=>{
+    if(window.GYMSOFT_DEMO_MODE){showToast('Deneyim Modu: v22.2 yedeğine rollback simüle edildi.','success','Rollback');return;}
+    try{const target=requireToolTarget();if(!lastReleaseBackups.length)await loadReleaseHistory();const backup=lastReleaseBackups[0]||'';if(!backup)throw new Error('Rollback yedeği bulunamadı.');if(!await uiConfirm(`${selectedDevice} cihazı ${backup.split('/').pop()} yedeğine geri döndürülsün mü? Mevcut durum ayrıca güvenlik yedeğine alınacaktır.`,{title:'Release Rollback'}))return;const btn=$("releaseRollbackBtn");btn.disabled=true;const data=await api('/api/release/rollback',{method:'POST',body:JSON.stringify({...target,backup})});showToast(`Rollback tamamlandı: ${data.restored_tag}`,'success','Release Rollback');await refreshReleaseStatus();await loadReleaseHistory();refreshRealActivity();}catch(err){showToast(err.message,'error','Release Rollback');}finally{$("releaseRollbackBtn").disabled=false;}
+});
 
 const DEMO_INVENTORY = [
     { customer: "Conan Fit", name: "Turnike 1", ip: "192.168.1.101", model: "Raspberry Pi 5", release: "v22.2", status: "online", temp: 47.6, health: 96, seen: "şimdi" },
@@ -1654,7 +1734,7 @@ function isAgentRequiredButton(id) {
         "healthBtn","systemBtn","displayModesBtn","displayApplyBtn","displayInfoBtn","displayNormalBtn","displayLabwcBtn","screenshotBtn","dashScreenshotBtn",
         "gpioReadBtn","gpioSwitchBtn","gpioBuzzerBtn","gpioLedBtn","gpioCoil1Btn","gpioCoil2Btn","openTurnstileBtn","lockTurnstileBtn","dashOpenBtn","dashLockBtn","quickOpenBtn",
         "loadTurnstileConfigBtn","saveTurnstileConfigBtn","turnServiceStatusBtn","apacheRestartBtn","chromiumRestartBtn","gc3RestartBtn","quickKioskBtn","quickGc3Btn","quickRebootBtn",
-        "diagnoseBtn","loadLogBtn","downloadBackupBtn"
+        "diagnoseBtn","loadLogBtn","downloadBackupBtn","supportPackageBtn","precheckBtn","networkCheckIpBtn","releaseHistoryBtn","releaseRollbackBtn","agentUpdateCheckBtn","agentUpdateBtn"
     ]).has(id);
 }
 
@@ -1797,6 +1877,7 @@ const COMMANDS = [
     {label:"Dashboard'a git", desc:"Genel durum ve alarmlar", page:"dashboard", icon:"⌂"},
     {label:"Ağı tara", desc:"Yerel ağdaki cihazları bul", page:"devices", target:"scanBtn", icon:"⌁"},
     {label:"Raspberry'yi doğrula", desc:"SSH üzerinden cihaz modelini kontrol et", page:"devices", target:"verifyBtn", icon:"✓"},
+    {label:"Kurulum ön kontrolünü çalıştır", desc:"İnternet, disk, gateway ve GitHub erişimini doğrula", page:"installation", target:"precheckBtn", icon:"✓"},
     {label:"Geçiş izni ver", desc:"Turnikeden tek geçişe izin ver", page:"turnstile", target:"openTurnstileBtn", icon:"↔"},
     {label:"Turnikeyi kilitle", desc:"Aktif geçişi sonlandır", page:"turnstile", target:"lockTurnstileBtn", icon:"■"},
     {label:"Kiosk restart", desc:"Chromium kiosk servisini yeniden başlat", page:"turnstile", target:"chromiumRestartBtn", icon:"↻"},
@@ -1805,6 +1886,8 @@ const COMMANDS = [
     {label:"Ağ özetini getir", desc:"IP, gateway ve DNS bilgileri", page:"network", target:"networkSummaryBtn", icon:"⌁"},
     {label:"Sağlık bilgilerini getir", desc:"Sıcaklık, CPU, RAM, disk, throttled", page:"health", target:"healthBtn", icon:"♥"},
     {label:"Hızlı arıza tespiti", desc:"Servis ve ağ kontrollerini tek raporda çalıştır", page:"diagnostics", target:"diagnoseBtn", icon:"!"},
+    {label:"Teknik destek paketi oluştur", desc:"Sistem, ağ ve servis loglarını tek arşivde indir", page:"diagnostics", target:"supportPackageBtn", icon:"↓"},
+    {label:"Release geçmişini göster", desc:"Kurulum ve rollback geçmişini oku", page:"dashboard", target:"releaseHistoryBtn", icon:"↺"},
     {label:"Deneyim Modunu aç/kapat", desc:"Raspberry olmadan arayüzü deneyimle", page:"dashboard", target:"demoModeBtn", icon:"◇"},
 ];
 
@@ -1857,8 +1940,16 @@ function initV9Ux() {
             const cmds=filteredCommands(); if(e.key==="ArrowDown"){e.preventDefault();__commandIndex=Math.min(cmds.length-1,__commandIndex+1);renderCommandPalette();} if(e.key==="ArrowUp"){e.preventDefault();__commandIndex=Math.max(0,__commandIndex-1);renderCommandPalette();} if(e.key==="Enter"){e.preventDefault();runCommandAt(__commandIndex);}
         }
     });
-    showToast("v11 canlı cihaz arayüzü hazır. Butonlar artık işlem durumu ve sonuç bildirimi gösterir.","info","Arayüz güncellendi");
+    showToast("v12 servis merkezi hazır. Butonlar artık işlem durumu ve sonuç bildirimi gösterir.","info","Arayüz güncellendi");
 }
+
+
+async function checkAgentUpdate(){
+    if(window.GYMSOFT_DEMO_MODE){$("agentUpdateVersion").textContent="v12 → v13-demo";$("agentUpdateNote").textContent="Deneyim Modu: yeni Agent sürümü bulundu.";$("agentUpdateBtn").disabled=false;return {available:true};}
+    try{const data=await api('/api/agent/update-status',{method:'GET'});const text=data.latest?`${data.current} → ${data.latest}`:`${data.current} · yayın manifesti bekleniyor`;$("agentUpdateVersion").textContent=text;$("agentUpdateNote").textContent=data.warning?`Manifest okunamadı: ${data.warning}`:data.available?'Yeni Agent hazır. Güncelleme EXE’yi indirip Agent’ı yeniden başlatır.':'Agent güncel veya yayın dosyası henüz hazırlanmadı.';$("agentUpdateBtn").disabled=!data.available;showToast(data.available?'Yeni Agent güncellemesi mevcut.':'Agent için yeni sürüm bulunamadı.',data.available?'warning':'success','Agent Güncelleme');return data;}catch(err){$("agentUpdateNote").textContent=err.message;showToast(err.message,'error','Agent Güncelleme');}
+}
+$("agentUpdateCheckBtn")?.addEventListener('click',checkAgentUpdate);
+$("agentUpdateBtn")?.addEventListener('click',async()=>{if(window.GYMSOFT_DEMO_MODE){showToast("Deneyim Modu: Agent güncelleme ve yeniden başlatma akışı simüle edildi.","success","Agent Güncelleme");return;}if(!await uiConfirm('Yeni GymsoftAgent.exe indirilsin ve Local Agent yeniden başlatılsın mı?',{title:'Agent Güncelleme'}))return;const btn=$("agentUpdateBtn");try{btn.disabled=true;const data=await api('/api/agent/update',{method:'POST',body:'{}'});showToast(data.message||'Agent yeniden başlatılıyor.','success','Agent Güncelleme');}catch(err){showToast(err.message,'error','Agent Güncelleme');btn.disabled=false;}});
 
 initV9Ux();
 
