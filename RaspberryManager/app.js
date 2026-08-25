@@ -229,6 +229,7 @@ async function refreshLiveStatus() {
     if (liveStatusBusy) return scheduleLiveStatus();
     if (!selectedDevice) {
         resetLiveStatus();
+        renderLiveAlarms([]);
         return scheduleLiveStatus();
     }
 
@@ -257,10 +258,12 @@ async function refreshLiveStatus() {
         $("liveNetwork").textContent = s.network_active ? `Aktif · ${formatUptime(s.uptime_seconds)}` : "Route yok";
         $("liveTurnstile").textContent = `${s.apache_active ? "Apache ✓" : "Apache ×"} · ${s.gc3_active ? "gc3 ✓" : "gc3 ×"}`;
         updateDashboard(s);
+        renderLiveAlarms(s.alarms || []);
     } catch (err) {
         setLiveConnection("Bağlantı yok", false);
         $("liveNetwork").textContent = "--";
         $("liveTurnstile").textContent = "--";
+        renderLiveAlarms([], err?.message || "SSH / canlı durum bağlantısı kurulamadı.");
     } finally {
         liveStatusBusy = false;
         scheduleLiveStatus();
@@ -357,7 +360,7 @@ $("installBtn").addEventListener("click", async () => {
         return alert("Bir release seçin.");
     }
 
-    if (!confirm(`${selectedDevice} cihazına Gymsoft kurulumu başlatılsın mı?`)) return;
+    if (!await uiConfirm(`${selectedDevice} cihazına Gymsoft kurulumu başlatılsın mı?`)) return;
 
     const btn = $("installBtn");
     btn.disabled = true;
@@ -484,7 +487,7 @@ $("saveTurnstileConfigBtn").addEventListener("click", async () => {
         if (!Number.isInteger(seconds) || seconds < 1 || seconds > 60) {
             throw new Error("Geçiş süresi 1 ile 60 saniye arasında olmalıdır.");
         }
-        if (!confirm(`${selectedDevice} cihazındaki turnike ayarları değiştirilsin mi?`)) return;
+        if (!await uiConfirm(`${selectedDevice} cihazındaki turnike ayarları değiştirilsin mi?`)) return;
 
         btn.disabled = true;
         setStatus($("turnstileState"), "Kaydediliyor", "running");
@@ -516,7 +519,7 @@ async function sendTurnstileAction(action) {
         const message = action === "open"
             ? `${selectedDevice} için bir geçiş izni verilsin mi?`
             : `${selectedDevice} üzerindeki aktif geçiş sonlandırılıp turnike kilitlensin mi?`;
-        if (!confirm(message)) return;
+        if (!await uiConfirm(message)) return;
 
         button.disabled = true;
         $("turnstileActionResult").classList.remove("muted");
@@ -552,7 +555,7 @@ $("changePasswordBtn").addEventListener("click", async () => {
         if (newPassword.length < 8) throw new Error("Yeni parola en az 8 karakter olmalıdır.");
         if (newPassword !== confirmPassword) throw new Error("Yeni parola alanları birbiriyle aynı değil.");
         if (newPassword === target.password) throw new Error("Yeni parola mevcut paroladan farklı olmalıdır.");
-        if (!confirm(`${selectedDevice} üzerindeki ${target.username} kullanıcısının SSH parolası değiştirilsin mi?`)) return;
+        if (!await uiConfirm(`${selectedDevice} üzerindeki ${target.username} kullanıcısının SSH parolası değiştirilsin mi?`)) return;
 
         btn.disabled = true;
         setStatus($("passwordState"), "Değiştiriliyor", "running");
@@ -620,7 +623,7 @@ $("saveTurnSetupBtn").addEventListener("click", async () => {
         if (!/^[A-Za-z0-9._-]+$/.test(licenseKey)) throw new Error("Lisans anahtarı geçersiz.");
         if (!/^[A-Za-z0-9.-]+$/.test(domain) || !domain.includes(".") || domain.includes("..")) throw new Error("Domain örneğin gymsoftx1.com biçiminde olmalıdır.");
 
-        if (!confirm(`${selectedDevice} üzerindeki daySet.php ve set.php lisans/turnike bilgileri değiştirilsin mi?`)) return;
+        if (!await uiConfirm(`${selectedDevice} üzerindeki daySet.php ve set.php lisans/turnike bilgileri değiştirilsin mi?`)) return;
         btn.disabled = true;
         setStatus($("turnSetupState"), "Kaydediliyor", "running");
         const data = await api("/api/turnstile/setup/update", {
@@ -749,7 +752,7 @@ async function changeNetwork(action) {
     } else {
         message = `${selectedDevice} üzerindeki ${profile} bağlantı profili SİLİNECEK. Aktif profilse bağlantı tamamen kesilebilir. Devam edilsin mi?`;
     }
-    if (!confirm(message)) return;
+    if (!await uiConfirm(message)) return;
 
     const buttonId = action === "static" ? "networkStaticBtn" : action === "dhcp" ? "networkDhcpBtn" : "networkDeleteBtn";
     try {
@@ -808,7 +811,7 @@ $("displayInfoBtn").addEventListener("click", () => runTextTool({
 }).catch(() => {}));
 
 $("displayNormalBtn").addEventListener("click", async () => {
-    if (!confirm(`${selectedDevice || "Seçili cihaz"} ekranı normal yöne alınsın mı?`)) return;
+    if (!await uiConfirm(`${selectedDevice || "Seçili cihaz"} ekranı normal yöne alınsın mı?`)) return;
     await runTextTool({
         button: "displayNormalBtn",
         state: "displayState",
@@ -827,7 +830,7 @@ $("displayLabwcBtn").addEventListener("click", () => runTextTool({
 }).catch(() => {}));
 
 async function runTurnService(action, buttonId, confirmText = "") {
-    if (confirmText && !confirm(confirmText)) return;
+    if (confirmText && !await uiConfirm(confirmText)) return;
     const btn = $(buttonId);
     try {
         const target = requireToolTarget();
@@ -924,7 +927,7 @@ async function gpioAction(action, buttonId, confirmText = "") {
     const btn = $(buttonId);
     try {
         const target = requireToolTarget();
-        if (confirmText && !confirm(confirmText)) return;
+        if (confirmText && !await uiConfirm(confirmText)) return;
         if (btn) btn.disabled = true;
         setStatus($("gpioState"), "Çalışıyor", "running");
         $("gpioResult").classList.remove("muted");
@@ -985,7 +988,7 @@ $("displayApplyBtn")?.addEventListener("click", async () => {
         const mode = $("displayModeSelect").value;
         const direction = $("displayDirection").value;
         if (!mode) throw new Error("Önce ekran modlarını okuyup bir çözünürlük seçin.");
-        if (!confirm(`${selectedDevice} ekranı ${mode} / ${direction} olarak değiştirilsin ve labwc için kalıcılaştırılsın mı?`)) return;
+        if (!await uiConfirm(`${selectedDevice} ekranı ${mode} / ${direction} olarak değiştirilsin ve labwc için kalıcılaştırılsın mı?`)) return;
         btn.disabled = true;
         setStatus($("displayState"), "Uygulanıyor", "running");
         const data = await api("/api/tools/display/apply", {
@@ -1059,7 +1062,7 @@ async function rebootDevice(buttonId = "quickRebootBtn") {
     const btn = $(buttonId);
     try {
         const target = requireToolTarget();
-        if (!confirm(`${selectedDevice} yeniden başlatılsın mı? SSH bağlantısı geçici olarak kesilecektir.`)) return;
+        if (!await uiConfirm(`${selectedDevice} yeniden başlatılsın mı? SSH bağlantısı geçici olarak kesilecektir.`)) return;
         btn.disabled = true;
         const data = await api("/api/tools/power", {
             method: "POST",
@@ -1095,6 +1098,7 @@ window.addEventListener("resize", () => {
    Gymsoft Raspberry Manager v8 — SPA navigation + Experience Mode
    ========================================================================== */
 window.GYMSOFT_DEMO_MODE = false;
+const UI_VERSION = "v10-live";
 
 const PAGE_META = {
     dashboard: ["YÖNETİM MERKEZİ", "Dashboard", "Tüm turnike ve Raspberry cihazlarının genel görünümü."],
@@ -1140,6 +1144,69 @@ function initPageRouter() {
     $("mobileMenuBtn")?.addEventListener("click", () => document.querySelector(".sidebar")?.classList.toggle("mobile-open"));
 }
 
+let liveAlarmCache = [];
+let realActivityTimer = null;
+
+function renderLiveAlarms(alarms = [], connectionError = "") {
+    if (window.GYMSOFT_DEMO_MODE) return;
+    const list = $("demoAlarmList");
+    const badge = $("demoAlarmCount");
+    if (!list || !badge) return;
+
+    let items = Array.isArray(alarms) ? alarms : [];
+    if (connectionError) {
+        items = [{ level:"critical", title:"Raspberry bağlantısı yok", detail:connectionError, time:"şimdi" }];
+    }
+    liveAlarmCache = items;
+    badge.className = `status ${items.length ? "running" : "success"}`;
+    badge.textContent = items.length ? `${items.length} açık uyarı · CANLI` : "0 uyarı · CANLI";
+
+    if (!selectedDevice || !verifiedDevices[selectedDevice]?.is_raspberry) {
+        badge.className = "status neutral";
+        badge.textContent = "Canlı bekliyor";
+        list.innerHTML = `<div class="info-box muted">Bir Raspberry doğrulandığında gerçek sağlık alarmları burada anlık olarak gösterilir.</div>`;
+        return;
+    }
+    if (!items.length) {
+        list.innerHTML = `<div class="alarm-item live-ok"><span class="alarm-dot info"></span><div><strong>Aktif alarm yok</strong><small>${escapeHtml(selectedDevice)} şu anda normal eşiklerde çalışıyor.</small></div><time>canlı</time></div>`;
+        return;
+    }
+    list.innerHTML = items.map(item => {
+        const level = ["critical","warning","info"].includes(item.level) ? item.level : "info";
+        return `<div class="alarm-item"><span class="alarm-dot ${level}"></span><div><strong>${escapeHtml(item.title || "Uyarı")}</strong><small>${escapeHtml(item.detail || "")}</small></div><time>${escapeHtml(item.time || "şimdi")}</time></div>`;
+    }).join("");
+}
+
+function renderRealActivity(items = []) {
+    if (window.GYMSOFT_DEMO_MODE) return;
+    const area = $("demoRecentActivity");
+    if (!area) return;
+    if (!items.length) {
+        area.innerHTML = `<div class="info-box muted">Henüz gerçek teknik servis işlemi kaydedilmedi. Agent üzerinden yapılan değişiklikler burada görünür.</div>`;
+        return;
+    }
+    area.innerHTML = items.map(item => {
+        const target = item.target_ip ? ` · ${escapeHtml(item.target_ip)}` : "";
+        const user = item.username ? escapeHtml(item.username) : "GymsoftAgent";
+        const markerClass = item.type === "error" ? " error" : "";
+        return `<div class="timeline-item"><time>${escapeHtml(item.time || "--:--:--")}</time><span class="timeline-marker${markerClass}"></span><div><strong>${escapeHtml(item.action || "İşlem")}${target}</strong><small>${user}${item.type === "error" ? " · BAŞARISIZ" : " · GERÇEK"}</small></div></div>`;
+    }).join("");
+}
+
+async function refreshRealActivity() {
+    if (window.GYMSOFT_DEMO_MODE) return;
+    const button = $("demoClearAuditBtn");
+    if (button) button.textContent = "Yenile";
+    try {
+        const data = await api("/api/activity?limit=5", { method:"GET" });
+        renderRealActivity(data.items || []);
+    } catch (err) {
+        renderRealActivity([]);
+    }
+    if (realActivityTimer) clearTimeout(realActivityTimer);
+    realActivityTimer = setTimeout(refreshRealActivity, 5000);
+}
+
 const DEMO_INVENTORY = [
     { customer: "Conan Fit", name: "Turnike 1", ip: "192.168.1.101", model: "Raspberry Pi 5", release: "v22.2", status: "online", temp: 47.6, health: 96, seen: "şimdi" },
     { customer: "Conan Fit", name: "Turnike 2", ip: "192.168.1.102", model: "Raspberry Pi 5", release: "v22.2", status: "online", temp: 45.2, health: 98, seen: "8 sn önce" },
@@ -1168,20 +1235,29 @@ function demoLog(text, type = "success") {
 }
 
 function renderDemoAlarms() {
+    if (!window.GYMSOFT_DEMO_MODE) return;
     const items = [
         ["critical", "Atlantis Gym / Turnike 1", "Cihaz çevrimdışı · son görülme 18 dk önce", "18 dk"],
         ["warning", "X Fitness / Turnike 1", "72.1°C · throttled geçmişi tespit edildi", "12 sn"],
         ["info", "Release güncellemesi", "v23.0 yayınlandı · 4 cihaz güncellenebilir", "yeni"],
     ];
+    $("demoAlarmCount").className = "status running";
+    $("demoAlarmCount").textContent = `${items.length} demo uyarı`;
     $("demoAlarmList").innerHTML = items.map(([type,title,detail,time]) => `<div class="alarm-item"><span class="alarm-dot ${type}"></span><div><strong>${title}</strong><small>${detail}</small></div><time>${time}</time></div>`).join("");
 }
 
 function renderDemoActivity() {
+    if (!window.GYMSOFT_DEMO_MODE) return;
     const list = demoAudit.slice(0, 5);
     $("demoRecentActivity").innerHTML = list.length ? list.map(item => `<div class="timeline-item"><time>${item.time}</time><span class="timeline-marker"></span><div><strong>${escapeHtml(item.text)}</strong><small>${escapeHtml(item.user)}</small></div></div>`).join("") : `<div class="info-box muted">İşlem geçmişi temizlendi.</div>`;
 }
 
 function renderInventory() {
+    if (!window.GYMSOFT_DEMO_MODE) {
+        if ($("inventoryStatus")) $("inventoryStatus").textContent = "Deneyim modu kapalı";
+        if ($("inventoryGrid")) $("inventoryGrid").innerHTML = `<div class="info-box muted">Bu envanter örnek verileri yalnızca Deneyim Modu'nda gösterilir. Gerçek cihazlar için Ağ Tarama tablosunu kullanın.</div>`;
+        return;
+    }
     const q = ($("inventorySearch")?.value || "").trim().toLowerCase();
     const filter = $("inventoryFilter")?.value || "all";
     const list = demoInventory.filter(item => {
@@ -1266,6 +1342,10 @@ function setDemoMode(enabled) {
     if ($("demoModeSwitch")) $("demoModeSwitch").checked = window.GYMSOFT_DEMO_MODE;
     if ($("sidebarModeText")) $("sidebarModeText").textContent = window.GYMSOFT_DEMO_MODE ? "Deneyim modu aktif" : "Gerçek cihaz modu";
     if (window.GYMSOFT_DEMO_MODE) {
+        if (realActivityTimer) clearTimeout(realActivityTimer);
+        if ($("demoClearAuditBtn")) $("demoClearAuditBtn").textContent = "Temizle";
+        if ($("demoInstalledRelease")) $("demoInstalledRelease").textContent = "v22.2";
+        if ($("demoLatestRelease")) $("demoLatestRelease").textContent = "v23.0";
         selectedDevice = "192.168.1.101";
         verifiedDevices[selectedDevice] = { is_raspberry:true, model:"Raspberry Pi 5 Model B", hostname:"GYM-TURNIKE-01", os:"Raspberry Pi OS", arch:"aarch64" };
         lastScanDevices = DEMO_INVENTORY.map(item => ({ ip:item.ip, ssh:item.status!=="offline", http:item.status!=="offline", status:item.status === "offline" ? "Çevrimdışı" : "SSH adayı" }));
@@ -1273,6 +1353,8 @@ function setDemoMode(enabled) {
         renderDevices(lastScanDevices);
         showDeviceInfo(verifiedDevices[selectedDevice]);
         applyDemoLiveStatus();
+        renderDemoAlarms();
+        renderInventory();
         demoLog("Deneyim modu etkinleştirildi", "success");
     } else {
         if (selectedDevice === "192.168.1.101" && verifiedDevices[selectedDevice]?.hostname === "GYM-TURNIKE-01") {
@@ -1284,6 +1366,12 @@ function setDemoMode(enabled) {
             renderDevices([]);
             resetLiveStatus();
         }
+        if ($("demoInstalledRelease")) $("demoInstalledRelease").textContent = "--";
+        if ($("demoLatestRelease")) $("demoLatestRelease").textContent = "--";
+        if ($("demoReleaseResult")) $("demoReleaseResult").textContent = "Gerçek sürüm karşılaştırması için GitHub token ile release listesini kontrol edin.";
+        renderLiveAlarms([]);
+        renderInventory();
+        refreshRealActivity();
     }
     scheduleLiveStatus(100);
 }
@@ -1324,7 +1412,7 @@ async function refreshAgentBadge() {
 
 function initExperienceUi() {
     initPageRouter();
-    renderDemoAlarms(); renderDemoActivity(); renderInventory(); renderAudit(); renderTurnTests(); renderWizard(); refreshAgentBadge();
+    renderLiveAlarms([]); renderInventory(); renderAudit(); renderTurnTests(); renderWizard(); refreshAgentBadge(); refreshRealActivity();
     $("demoModeBtn")?.addEventListener("click", () => setDemoMode(!window.GYMSOFT_DEMO_MODE));
     $("demoModeSwitch")?.addEventListener("change", e => setDemoMode(e.target.checked));
     $("inventorySearch")?.addEventListener("input", renderInventory);
@@ -1334,7 +1422,10 @@ function initExperienceUi() {
         demoInventory.push({ customer:"Demo Salon", name:`Turnike ${n}`, ip:`192.168.1.${110+n}`, model:"Raspberry Pi 5", release:"v22.2", status:"online", temp:46.0, health:92, seen:"şimdi" });
         renderInventory(); demoLog(`Demo Salon / Turnike ${n} envantere eklendi`, "change");
     });
-    $("demoClearAuditBtn")?.addEventListener("click", () => { demoAudit=[]; renderDemoActivity(); renderAudit(); });
+    $("demoClearAuditBtn")?.addEventListener("click", () => {
+        if (window.GYMSOFT_DEMO_MODE) { demoAudit=[]; renderDemoActivity(); renderAudit(); }
+        else refreshRealActivity();
+    });
     $("auditFilter")?.addEventListener("change", renderAudit);
     $("demoReleaseBtn")?.addEventListener("click", () => {
         const btn=$("demoReleaseBtn"); btn.disabled=true; $("demoReleaseResult").textContent="1/3 Konfigürasyon yedeği alınıyor…";
@@ -1382,3 +1473,292 @@ async function checkGitHubPagesAgent() {
 document.getElementById("agentCheckBtn")?.addEventListener("click", checkGitHubPagesAgent);
 document.getElementById("agentDemoBtn")?.addEventListener("click", () => setDemoMode(true));
 checkGitHubPagesAgent();
+
+
+/* ========================================================================== 
+   Gymsoft Raspberry Manager v9 — Interaction & feedback layer
+   ========================================================================== */
+window.GYMSOFT_AGENT_ONLINE = false;
+let __uiConfirmResolve = null;
+let __commandIndex = 0;
+let __lastClickedButton = null;
+
+function setActionDock(text, state = "ready") {
+    const t = document.getElementById("uiActionText");
+    const d = document.getElementById("uiActionDot");
+    if (t) t.textContent = text;
+    if (d) d.className = `ui-action-dot ${state}`;
+}
+
+function showToast(message, type = "info", title = "") {
+    const stack = document.getElementById("uiToastStack");
+    if (!stack) return;
+    const text = String(message || "İşlem tamamlandı.");
+    const resolvedTitle = title || ({success:"Başarılı", error:"İşlem başarısız", warning:"Dikkat", info:"Bilgi"}[type] || "Bilgi");
+    const icon = ({success:"✓", error:"×", warning:"!", info:"i"}[type] || "i");
+    const toast = document.createElement("div");
+    toast.className = `ui-toast ${type}`;
+    toast.innerHTML = `<span class="ui-toast-icon">${icon}</span><div><strong>${escapeHtml(resolvedTitle)}</strong><small>${escapeHtml(text)}</small></div><button type="button" aria-label="Bildirimi kapat">×</button>`;
+    const remove = () => { if (!toast.isConnected) return; toast.classList.add("removing"); setTimeout(()=>toast.remove(),180); };
+    toast.querySelector("button").addEventListener("click", remove);
+    stack.prepend(toast);
+    while (stack.children.length > 5) stack.lastElementChild.remove();
+    setTimeout(remove, type === "error" ? 6500 : 4200);
+}
+
+// Existing alert() calls now become non-blocking in-app feedback.
+window.alert = (message) => showToast(message, "warning");
+
+function uiConfirm(message, options = {}) {
+    const backdrop = document.getElementById("uiConfirmBackdrop");
+    const msg = document.getElementById("uiConfirmMessage");
+    const title = document.getElementById("uiConfirmTitle");
+    if (!backdrop || !msg || !title) return Promise.resolve(window.confirm(String(message)));
+    if (__uiConfirmResolve) { __uiConfirmResolve(false); __uiConfirmResolve = null; }
+    title.textContent = options.title || "İşlemi onaylayın";
+    msg.textContent = String(message || "Bu işlem devam ettirilsin mi?");
+    backdrop.classList.remove("hidden");
+    document.getElementById("uiConfirmOk")?.focus();
+    return new Promise(resolve => { __uiConfirmResolve = resolve; });
+}
+
+function closeUiConfirm(result) {
+    document.getElementById("uiConfirmBackdrop")?.classList.add("hidden");
+    const resolve = __uiConfirmResolve; __uiConfirmResolve = null;
+    if (resolve) resolve(Boolean(result));
+}
+
+// Enhanced status badge with action-center feedback.
+function setStatus(el, text, type = "neutral") {
+    if (!el) return;
+    el.textContent = text;
+    el.className = `status ${type}`;
+    if (type === "running") setActionDock(text, "running");
+    if (type === "success") setActionDock(text, "success");
+    if (type === "error") setActionDock(text, "error");
+}
+
+function actionLabel(button) {
+    if (!button) return "İşlem";
+    return button.dataset.actionLabel || button.textContent.trim().replace(/\s+/g," ") || "İşlem";
+}
+
+function makeButtonFeelAlive(button) {
+    if (!button || button.classList.contains("wizard-step")) return;
+    button.classList.add("ui-pressed");
+    setTimeout(()=>button.classList.remove("ui-pressed"), 150);
+    setActionDock(`${actionLabel(button)} seçildi`, "running");
+}
+
+function isAgentRequiredButton(id) {
+    return new Set([
+        "scanBtn","verifyBtn","loadReleasesBtn","installBtn","changePasswordBtn","loadTurnSetupBtn","saveTurnSetupBtn",
+        "networkSummaryBtn","networkProfilesBtn","networkActiveBtn","networkRefreshProfilesBtn","networkStaticBtn","networkDhcpBtn","networkDeleteBtn",
+        "healthBtn","systemBtn","displayModesBtn","displayApplyBtn","displayInfoBtn","displayNormalBtn","displayLabwcBtn","screenshotBtn","dashScreenshotBtn",
+        "gpioReadBtn","gpioSwitchBtn","gpioBuzzerBtn","gpioLedBtn","gpioCoil1Btn","gpioCoil2Btn","openTurnstileBtn","lockTurnstileBtn","dashOpenBtn","dashLockBtn","quickOpenBtn",
+        "loadTurnstileConfigBtn","saveTurnstileConfigBtn","turnServiceStatusBtn","apacheRestartBtn","chromiumRestartBtn","gc3RestartBtn","quickKioskBtn","quickGc3Btn","quickRebootBtn",
+        "diagnoseBtn","loadLogBtn","downloadBackupBtn"
+    ]).has(id);
+}
+
+function decorateButtons() {
+    document.querySelectorAll("button").forEach(btn => {
+        if (!btn.title && btn.id && !btn.classList.contains("wizard-step")) btn.title = `${actionLabel(btn)} işlemini çalıştır`;
+    });
+}
+
+function initV9ButtonFeedback() {
+    document.addEventListener("click", event => {
+        const btn = event.target.closest("button");
+        if (!btn || btn.disabled) return;
+        __lastClickedButton = btn;
+        makeButtonFeelAlive(btn);
+        if (!window.GYMSOFT_DEMO_MODE && !window.GYMSOFT_AGENT_ONLINE && isAgentRequiredButton(btn.id)) {
+            event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation();
+            setActionDock("Local Agent bağlantısı gerekli", "error");
+            showToast("Bu işlem için GymsoftAgent.exe çalışıyor olmalı. İstersen Deneyim Modu ile arayüzü test edebilirsin.", "warning", "Local Agent bağlı değil");
+        }
+    }, true);
+
+    const observer = new MutationObserver(records => {
+        for (const record of records) {
+            if (record.type !== "attributes" || record.attributeName !== "disabled") continue;
+            const btn = record.target;
+            if (!(btn instanceof HTMLButtonElement)) continue;
+            if (btn.disabled && btn === __lastClickedButton) btn.classList.add("is-loading");
+            if (!btn.disabled) btn.classList.remove("is-loading");
+        }
+    });
+    document.querySelectorAll("button").forEach(btn => observer.observe(btn,{attributes:true}));
+}
+
+// More useful demo feedback than silent API failures.
+function simulateDemoAction(label, type="success") {
+    demoLog(`Conan Fit / Turnike 1 · ${label}`, type);
+    if ($("quickResult")) { $("quickResult").classList.remove("muted"); $("quickResult").textContent = `Deneyim Modu: ${label}`; }
+    setActionDock(label, type === "warning" ? "error" : "success");
+    showToast(label, type === "warning" ? "warning" : "success", "Deneyim Modu");
+}
+
+function demoOutput(id, text) {
+    const el = document.getElementById(id);
+    if (el) { el.classList?.remove("muted"); el.textContent = text; }
+}
+
+function demoFinishButton(btn, label, message, type="success") {
+    if (!btn) return;
+    btn.classList.remove("is-loading"); btn.disabled = false;
+    setActionDock(message, type === "error" ? "error" : "success");
+    showToast(message, type, label);
+}
+
+function runV9DemoAction(id, btn) {
+    const delay = (fn, ms=550) => { btn.disabled=true; btn.classList.add("is-loading"); setTimeout(fn,ms); };
+    if (id === "scanBtn") {
+        delay(()=>{ lastScanDevices = DEMO_INVENTORY.map(item=>({ip:item.ip,ssh:item.status!=="offline",http:item.status!=="offline",status:item.status==="offline"?"Çevrimdışı":"SSH adayı"})); renderDevices(lastScanDevices); setStatus($("scanState"),`${lastScanDevices.length} cihaz`,"success"); demoFinishButton(btn,"Ağ Tarama",`${lastScanDevices.length} demo cihaz bulundu.`); },700); return true;
+    }
+    if (id === "verifyBtn") {
+        delay(()=>{ selectedDevice = selectedDevice || "192.168.1.101"; $("selectedIp").value=selectedDevice; verifiedDevices[selectedDevice]={is_raspberry:true,model:"Raspberry Pi 5 Model B",hostname:"GYM-TURNIKE-01",os:"Raspberry Pi OS 64-bit",arch:"aarch64"}; showDeviceInfo(verifiedDevices[selectedDevice]); applyDemoLiveStatus(); demoFinishButton(btn,"SSH Doğrulama","Raspberry Pi başarıyla doğrulandı."); },650); return true;
+    }
+    if (id === "loadReleasesBtn") {
+        delay(()=>{ $("releaseSelect").innerHTML='<option value="v23.0">v23.0 — Güncel Release</option><option value="v22.2">v22.2 — Ekran Rotasyon Ayarları</option><option value="V22">V22 — V22.0</option>'; demoFinishButton(btn,"GitHub Release","3 release listelendi."); },650); return true;
+    }
+    if (id === "installBtn") {
+        if ($("logBox")) $("logBox").textContent="[DEMO] 1/5 Raspberry bağlantısı doğrulandı…\n[DEMO] 2/5 Release indiriliyor…";
+        setStatus($("jobState"),"Kuruluyor","running"); btn.disabled=true; btn.classList.add("is-loading");
+        setTimeout(()=>{ if($("logBox")) $("logBox").textContent += "\n[DEMO] 3/5 Web dosyaları aktarıldı…\n[DEMO] 4/5 Kiosk ve ekran ayarlandı…"; },700);
+        setTimeout(()=>{ if($("logBox")) $("logBox").textContent += "\n[DEMO] 5/5 Sağlık kontrolü başarılı.\n✓ Deneme kurulumu tamamlandı."; setStatus($("jobState"),"Tamamlandı","success"); demoFinishButton(btn,"Raspberry Kurulumu","Deneme kurulumu başarıyla tamamlandı."); demoLog("Demo Raspberry kurulumu tamamlandı","change"); },1450); return true;
+    }
+    if (id === "changePasswordBtn") { delay(()=>{ demoOutput("passwordResult","Deneyim Modu: parola değişikliği doğrulandı; gerçek cihaza yazılmadı."); setStatus($("passwordState"),"Değiştirildi","success"); demoFinishButton(btn,"Güvenlik","Parola değişikliği simüle edildi."); },600); return true; }
+    if (id === "loadTurnSetupBtn") { delay(()=>{ $("turnSetupId").value="txdxky126"; $("turnSetupNumber").value="1"; $("turnLicenseKey").value="gzyb6jcm"; $("turnDomain").value="gymsoftx1.com"; demoOutput("turnSetupResult","Demo ayarları Raspberry üzerinden okunmuş gibi forma yüklendi."); setStatus($("turnSetupState"),"Okundu","success"); demoFinishButton(btn,"Turnike Kurulumu","Mevcut turnike ayarları yüklendi."); },550); return true; }
+    if (id === "saveTurnSetupBtn") { delay(()=>{ setStatus($("turnSetupState"),"Kaydedildi","success"); demoOutput("turnSetupResult","Deneyim Modu: daySet.php ve set.php değerleri doğrulandı. Gerçek dosyaya yazılmadı."); demoFinishButton(btn,"Turnike Kurulumu","Turnike kimlik ve lisans ayarları kaydedildi."); },650); return true; }
+    if (["networkSummaryBtn","networkProfilesBtn","networkActiveBtn","networkRefreshProfilesBtn"].includes(id)) {
+        delay(()=>{ if(id==="networkRefreshProfilesBtn" && $("networkProfile")) $("networkProfile").innerHTML='<option>netplan-eth0</option><option>netplan-wlan0-Gymsoft</option>'; demoOutput("networkOutput","Bağlantı: netplan-eth0\nIP: 192.168.1.101/24\nGateway: 192.168.1.1\nDNS: 8.8.8.8\nDurum: connected"); setStatus($("networkState"),"Okundu","success"); demoFinishButton(btn,"Ağ","Ağ bilgileri güncellendi."); },520); return true;
+    }
+    if (["networkStaticBtn","networkDhcpBtn","networkDeleteBtn"].includes(id)) {
+        delay(()=>{ demoOutput("networkOutput",`Deneyim Modu: ${actionLabel(btn)} simüle edildi. SSH bağlantısı etkilenmedi.`); setStatus($("networkState"),"Demo tamamlandı","success"); demoFinishButton(btn,"Ağ Ayarı",`${actionLabel(btn)} simüle edildi.`, id==="networkDeleteBtn"?"warning":"success"); },650); return true;
+    }
+    if (id === "healthBtn") { delay(()=>{ demoOutput("healthOutput","Sıcaklık : 47.6 °C\nCPU      : %28\nRAM      : %46\nDisk     : %32\nVoltaj   : 1.20V\nThrottled: 0x0\nDurum    : NORMAL"); setStatus($("healthState"),"Sağlıklı","success"); demoFinishButton(btn,"Sağlık","Sağlık verileri alındı."); },520); return true; }
+    if (id === "systemBtn") { delay(()=>{ demoOutput("systemOutput","Model    : Raspberry Pi 5 Model B Rev 1.0\nOS       : Raspberry Pi OS 64-bit\nKernel   : 6.6.x-rpi\nHostname : GYM-TURNIKE-01\nMimari   : aarch64\nUptime   : 2 gün 4 saat"); setStatus($("systemState"),"Okundu","success"); demoFinishButton(btn,"Sistem","Sistem bilgileri getirildi."); },520); return true; }
+    if (["displayModesBtn","displayInfoBtn","displayLabwcBtn"].includes(id)) { delay(()=>{ if($("displayModeSelect")) $("displayModeSelect").innerHTML='<option value="1280x720">1280x720 (aktif)</option><option value="1920x1080">1920x1080</option>'; demoOutput("displayOutput","HDMI-A-1 connected\n1280x720 @ 60Hz\nTransform: normal\nlabwc autostart: aktif"); setStatus($("displayState"),"Okundu","success"); demoFinishButton(btn,"Ekran","Ekran bilgileri okundu."); },520); return true; }
+    if (["displayApplyBtn","displayNormalBtn"].includes(id)) { delay(()=>{ demoOutput("displayOutput",`Deneyim Modu: ${$("displayModeSelect")?.value||"1280x720"} / ${$("displayDirection")?.value||"normal"} uygulandı.`); setStatus($("displayState"),"Uygulandı","success"); demoFinishButton(btn,"Ekran",`${actionLabel(btn)} tamamlandı.`); },620); return true; }
+    if (["screenshotBtn","dashScreenshotBtn"].includes(id)) {
+        delay(()=>{ const box=$("screenPreview"); if(box){ box.classList.remove("has-image"); box.innerHTML='<div class="demo-screen"><strong>GYMSOFT Turnike Sistemi</strong><span>Lütfen kartınızı okutun</span><small>Demo ekran görüntüsü · 1280×720</small></div>'; } setStatus($("screenshotState"),"Demo görüntü","success"); demoFinishButton(btn,"Ekran Görüntüsü","Demo kiosk görüntüsü alındı."); },650); return true;
+    }
+    if (["gpioReadBtn","gpioSwitchBtn"].includes(id)) { delay(()=>{ renderGpioPins({switch:21,coil1:6,coil2:5,buzzer:13,led:11}); demoOutput("gpioResult", id==="gpioSwitchBtn"?"Switch durumu: KAPALI":"GPIO pinleri gc3.py üzerinden okundu."); setStatus($("gpioState"),"Tamamlandı","success"); demoFinishButton(btn,"GPIO",id==="gpioSwitchBtn"?"Switch durumu okundu.":"GPIO pinleri okundu."); },450); return true; }
+    if (id === "loadTurnstileConfigBtn") { delay(()=>{ $("turnDirection").value="cift"; $("transitionSeconds").value="9"; $("turnColorHex").value="#00b8d9"; $("turnColor").value="#00b8d9"; $("colorPreview").style.background="#00b8d9"; setStatus($("turnstileState"),"Okundu","success"); demoFinishButton(btn,"Turnike Ayarları","Mevcut yön, süre ve renk okundu."); },520); return true; }
+    if (id === "saveTurnstileConfigBtn") { delay(()=>{ setStatus($("turnstileState"),"Kaydedildi","success"); demoOutput("turnstileActionResult","Deneyim Modu: yön / süre / renk ayarları kaydedildi."); demoFinishButton(btn,"Turnike Ayarları","Turnike ayarları kaydedildi."); },600); return true; }
+    if (id === "turnServiceStatusBtn") { delay(()=>{ demoOutput("turnServiceOutput","Apache    : active ✓\nChromium  : running ✓\ngc3.py    : running ✓\nKiosk URL : HTTP 200 ✓"); demoFinishButton(btn,"Servisler","Turnike servisleri aktif."); },500); return true; }
+    if (id === "diagnoseBtn") { delay(()=>{ demoOutput("diagnoseOutput","=== GYMSOFT HIZLI ARIZA TESPİTİ ===\n✓ Raspberry: ONLINE\n✓ Apache: active\n✓ gircik.php: HTTP 200\n✓ gc3.py: running\n✓ Chromium: running\n✓ Gateway: 4 ms\n✓ Throttled: 0x0\n\nSONUÇ: Kritik arıza bulunamadı."); setStatus($("diagnoseState"),"Sorun yok","success"); demoFinishButton(btn,"Arıza Tespiti","Hızlı teşhis tamamlandı; kritik sorun yok."); },900); return true; }
+    if (id === "loadLogBtn") { delay(()=>{ demoOutput("maintenanceOutput","12:01:14 [INFO] Apache aktif\n12:01:15 [INFO] gc3.py heartbeat OK\n12:01:16 [INFO] Chromium kiosk HTTP 200\n12:01:17 [INFO] sıcaklık=47.6°C cpu=28%\n12:01:18 [INFO] sağlık kontrol döngüsü tamamlandı"); setStatus($("maintenanceState"),"Log okundu","success"); demoFinishButton(btn,"Log Merkezi","Demo logları getirildi."); },550); return true; }
+    if (id === "downloadBackupBtn") { delay(()=>{ demoOutput("maintenanceOutput","Deneyim Modu: gymsoft-config-demo.tar.gz yedeği oluşturuldu (indirme simüle edildi)."); setStatus($("maintenanceState"),"Yedek hazır","success"); demoFinishButton(btn,"Yedekleme","Konfigürasyon yedeği hazırlandı."); },650); return true; }
+    return false;
+}
+
+function installV9DemoInterceptors() {
+    document.addEventListener("click", event => {
+        if (!window.GYMSOFT_DEMO_MODE) return;
+        const btn = event.target.closest("button");
+        if (!btn || btn.disabled) return;
+        const handled = runV9DemoAction(btn.id, btn);
+        if (handled) { event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); }
+    }, true);
+}
+
+// Inventory cards are now real selectable controls.
+function renderInventory() {
+    const q = ($("inventorySearch")?.value || "").trim().toLowerCase();
+    const filter = $("inventoryFilter")?.value || "all";
+    const list = demoInventory.filter(item => {
+        const matches = !q || `${item.customer} ${item.name} ${item.ip} ${item.model} ${item.release}`.toLowerCase().includes(q);
+        return matches && (filter === "all" || item.status === filter);
+    });
+    $("inventoryStatus").textContent = `${list.length} / ${demoInventory.length} cihaz`;
+    $("inventoryGrid").innerHTML = list.map(item => {
+        const temp = item.temp === null ? "--" : `${item.temp.toFixed(1)} °C`;
+        const selected = selectedDevice === item.ip ? " selected" : "";
+        return `<button type="button" class="inventory-card-button${selected}" data-demo-device-ip="${item.ip}"><span class="inventory-state ${item.status}"></span><span class="customer">${escapeHtml(item.customer)}</span><h3>${escapeHtml(item.name)}</h3><div class="inventory-meta"><div><span>IP</span><strong>${item.ip}</strong></div><div><span>Model</span><strong>${escapeHtml(item.model)}</strong></div><div><span>Sürüm</span><strong>${item.release}</strong></div><div><span>Sıcaklık</span><strong>${temp}</strong></div></div><div class="health-score"><div class="health-score-track"><div class="health-score-fill" style="width:${item.health}%"></div></div><strong>${item.health}/100</strong></div><div class="mini-result">Son görülme: ${item.seen}</div><div class="select-hint">Cihazı seçmek için tıklayın →</div></button>`;
+    }).join("") || `<div class="info-box muted">Filtreye uygun cihaz bulunamadı.</div>`;
+}
+
+function selectDemoInventoryDevice(ip) {
+    const item = demoInventory.find(x=>x.ip===ip); if(!item) return;
+    selectedDevice = item.ip; $("selectedIp").value=item.ip;
+    verifiedDevices[item.ip]={is_raspberry:item.status!=="offline",model:item.model,hostname:`GYM-${item.name.replace(/\s+/g,"-").toUpperCase()}`,os:"Raspberry Pi OS",arch:item.model.includes("5")?"aarch64":"armv7l"};
+    if (item.status !== "offline") showDeviceInfo(verifiedDevices[item.ip]);
+    $("dashDeviceName").textContent=`${item.customer} · ${item.name}`;
+    $("dashDeviceMeta").textContent=`${item.ip} · ${item.model} · ${item.release}`;
+    renderInventory();
+    if(item.status!=="offline") applyDemoLiveStatus(); else setLiveConnection("Çevrimdışı",false);
+    showToast(`${item.customer} / ${item.name} seçildi.`,"success","Aktif cihaz değişti");
+    setActionDock(`${item.name} aktif cihaz olarak seçildi`,"success");
+}
+
+const COMMANDS = [
+    {label:"Dashboard'a git", desc:"Genel durum ve alarmlar", page:"dashboard", icon:"⌂"},
+    {label:"Ağı tara", desc:"Yerel ağdaki cihazları bul", page:"devices", target:"scanBtn", icon:"⌁"},
+    {label:"Raspberry'yi doğrula", desc:"SSH üzerinden cihaz modelini kontrol et", page:"installation", target:"verifyBtn", icon:"✓"},
+    {label:"Geçiş izni ver", desc:"Turnikeden tek geçişe izin ver", page:"turnstile", target:"openTurnstileBtn", icon:"↔"},
+    {label:"Turnikeyi kilitle", desc:"Aktif geçişi sonlandır", page:"turnstile", target:"lockTurnstileBtn", icon:"■"},
+    {label:"Kiosk restart", desc:"Chromium kiosk servisini yeniden başlat", page:"turnstile", target:"chromiumRestartBtn", icon:"↻"},
+    {label:"Ekran görüntüsü al", desc:"Kiosk ekranını görüntüle", page:"hardware", target:"screenshotBtn", icon:"▣"},
+    {label:"GPIO pinlerini oku", desc:"gc3.py pin yapılandırmasını göster", page:"hardware", target:"gpioReadBtn", icon:"⚡"},
+    {label:"Ağ özetini getir", desc:"IP, gateway ve DNS bilgileri", page:"network", target:"networkSummaryBtn", icon:"⌁"},
+    {label:"Sağlık bilgilerini getir", desc:"Sıcaklık, CPU, RAM, disk, throttled", page:"health", target:"healthBtn", icon:"♥"},
+    {label:"Hızlı arıza tespiti", desc:"Servis ve ağ kontrollerini tek raporda çalıştır", page:"diagnostics", target:"diagnoseBtn", icon:"!"},
+    {label:"Deneyim Modunu aç/kapat", desc:"Raspberry olmadan arayüzü deneyimle", page:"dashboard", target:"demoModeBtn", icon:"◇"},
+];
+
+function filteredCommands() {
+    const q=(document.getElementById("commandPaletteSearch")?.value||"").trim().toLowerCase();
+    return COMMANDS.filter(c=>!q||`${c.label} ${c.desc} ${c.page}`.toLowerCase().includes(q));
+}
+function renderCommandPalette() {
+    const list=document.getElementById("commandPaletteList"); if(!list)return;
+    const commands=filteredCommands(); __commandIndex=Math.max(0,Math.min(__commandIndex,commands.length-1));
+    list.innerHTML=commands.map((c,i)=>`<button type="button" class="command-item ${i===__commandIndex?'active':''}" data-command-index="${i}"><span class="command-icon">${c.icon}</span><span><strong>${escapeHtml(c.label)}</strong><small>${escapeHtml(c.desc)}</small></span><span class="command-page">${escapeHtml(c.page)}</span></button>`).join("") || '<div class="info-box muted">Komut bulunamadı.</div>';
+}
+function openCommandPalette() { document.getElementById("commandPaletteBackdrop")?.classList.remove("hidden"); __commandIndex=0; renderCommandPalette(); setTimeout(()=>document.getElementById("commandPaletteSearch")?.focus(),30); }
+function closeCommandPalette() { document.getElementById("commandPaletteBackdrop")?.classList.add("hidden"); }
+function runCommandAt(index) { const c=filteredCommands()[index]; if(!c)return; closeCommandPalette(); navigateToPage(c.page); if(c.target)setTimeout(()=>document.getElementById(c.target)?.click(),180); else showToast(`${c.label} açıldı.`,"info"); }
+
+// Enhanced Agent check with visible body state.
+async function checkGitHubPagesAgent() {
+    const state = document.getElementById("agentState");
+    if (!state) return;
+    state.textContent = `Kontrol ediliyor · ${API_BASE}`; state.className="agent-checking";
+    setActionDock("Local Agent kontrol ediliyor", "running");
+    try {
+        const data = await api("/api/agent-status", {method:"GET"});
+        window.GYMSOFT_AGENT_ONLINE=true; document.body.classList.remove("agent-offline-mode");
+        state.textContent=`Bağlı · ${data.name||"Gymsoft Local Agent"} · ${data.version||"v9"}`; state.className="agent-online";
+        if(data.default_cidr && document.getElementById("cidr")?.value==="192.168.1.0/24") document.getElementById("cidr").value=data.default_cidr;
+        refreshAgentBadge(); setActionDock("Local Agent bağlı", "success");
+    } catch(err) {
+        window.GYMSOFT_AGENT_ONLINE=false; document.body.classList.add("agent-offline-mode");
+        state.textContent=`Bağlanamadı · GymsoftAgent.exe çalışmıyor (${API_BASE})`; state.className="agent-offline";
+        setActionDock("Local Agent bağlı değil · Demo kullanılabilir", "error");
+    }
+}
+
+function initV9Ux() {
+    decorateButtons(); initV9ButtonFeedback(); installV9DemoInterceptors();
+    document.getElementById("uiConfirmCancel")?.addEventListener("click",()=>closeUiConfirm(false));
+    document.getElementById("uiConfirmOk")?.addEventListener("click",()=>closeUiConfirm(true));
+    document.getElementById("uiConfirmBackdrop")?.addEventListener("click",e=>{if(e.target.id==="uiConfirmBackdrop")closeUiConfirm(false);});
+    document.getElementById("commandPaletteBtn")?.addEventListener("click",openCommandPalette);
+    document.getElementById("commandPaletteBackdrop")?.addEventListener("click",e=>{if(e.target.id==="commandPaletteBackdrop")closeCommandPalette();});
+    document.getElementById("commandPaletteSearch")?.addEventListener("input",()=>{__commandIndex=0;renderCommandPalette();});
+    document.getElementById("commandPaletteList")?.addEventListener("click",e=>{const b=e.target.closest("[data-command-index]");if(b)runCommandAt(Number(b.dataset.commandIndex));});
+    document.getElementById("inventoryGrid")?.addEventListener("click",e=>{const card=e.target.closest("[data-demo-device-ip]");if(card)selectDemoInventoryDevice(card.dataset.demoDeviceIp);});
+    document.addEventListener("keydown",e=>{
+        if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();const open=!document.getElementById("commandPaletteBackdrop")?.classList.contains("hidden");open?closeCommandPalette():openCommandPalette();return;}
+        if(e.key==="Escape"){closeCommandPalette();if(!document.getElementById("uiConfirmBackdrop")?.classList.contains("hidden"))closeUiConfirm(false);return;}
+        if(!document.getElementById("commandPaletteBackdrop")?.classList.contains("hidden")){
+            const cmds=filteredCommands(); if(e.key==="ArrowDown"){e.preventDefault();__commandIndex=Math.min(cmds.length-1,__commandIndex+1);renderCommandPalette();} if(e.key==="ArrowUp"){e.preventDefault();__commandIndex=Math.max(0,__commandIndex-1);renderCommandPalette();} if(e.key==="Enter"){e.preventDefault();runCommandAt(__commandIndex);}
+        }
+    });
+    showToast("v9 etkileşim katmanı hazır. Butonlar artık işlem durumu ve sonuç bildirimi gösterir.","info","Arayüz güncellendi");
+}
+
+initV9Ux();

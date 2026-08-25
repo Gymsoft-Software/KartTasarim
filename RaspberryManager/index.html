@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gymsoft Raspberry Manager v8</title>
+    <title>Gymsoft Raspberry Manager v9</title>
     <link rel="stylesheet" href="./app.css">
 </head>
 <body>
@@ -33,7 +33,7 @@
             <a href="#settings" data-page-link="settings"><span>⚙</span><div><strong>Ayarlar</strong><small>Güvenlik & agent</small></div></a>
         </nav>
         <div class="sidebar-note">
-            <strong>GYMSOFT Manager v8</strong>
+            <strong>GYMSOFT Manager v9</strong>
             <span id="sidebarModeText">Gerçek cihaz modu</span>
             <span class="sidebar-agent" id="sidebarAgentText">Agent bekleniyor</span>
         </div>
@@ -70,11 +70,12 @@
                 </div>
             </div>
             <div class="top-actions">
+                <button type="button" id="commandPaletteBtn" class="secondary compact command-trigger" title="Komut Paleti (Ctrl+K)">⌘ Komutlar</button>
                 <button type="button" id="demoModeBtn" class="secondary compact">Deneyim Modu</button>
                 <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
                 <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
                 <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
-                <span class="badge">v8 Experience</span>
+                <span class="badge">v9 Interactive</span>
             </div>
         </header>
 
@@ -499,27 +500,27 @@
         </section>
 
         
-        <!-- v8: Kullanıcı dostu deneyim özellikleri -->
+        <!-- v9: Etkileşimli kullanıcı deneyimi özellikleri -->
         <section class="experience-grid app-page-section" id="demoOverview" data-page="dashboard">
             <div class="panel experience-card alarm-center">
                 <div class="section-title compact-title">
-                    <div><h2>Alarm Merkezi</h2><p>Öncelikli sorunları tek bakışta görün.</p></div>
-                    <span class="status running" id="demoAlarmCount">3 açık uyarı</span>
+                    <div><h2>Alarm Merkezi</h2><p>Gerçek modda seçili Raspberry'nin canlı sağlık durumundan üretilir.</p></div>
+                    <span class="status neutral" id="demoAlarmCount">Canlı bekliyor</span>
                 </div>
                 <div id="demoAlarmList" class="alarm-list"></div>
             </div>
             <div class="panel experience-card">
                 <div class="section-title compact-title"><div><h2>Release Durumu</h2><p>Kurulu sürüm ve GitHub sürüm karşılaştırması.</p></div></div>
                 <div class="release-compare">
-                    <div><small>Kurulu</small><strong id="demoInstalledRelease">v22.2</strong></div>
+                    <div><small>Kurulu</small><strong id="demoInstalledRelease">--</strong></div>
                     <div class="release-arrow">→</div>
-                    <div><small>Güncel</small><strong id="demoLatestRelease">v23.0</strong></div>
+                    <div><small>Güncel</small><strong id="demoLatestRelease">--</strong></div>
                 </div>
                 <button type="button" id="demoReleaseBtn" class="primary full-button">Güncelleme Akışını Deneyimle</button>
-                <div id="demoReleaseResult" class="mini-result">Güncellemeden önce otomatik konfigürasyon yedeği alınır.</div>
+                <div id="demoReleaseResult" class="mini-result">Gerçek sürüm karşılaştırması için GitHub token ile release listesini kontrol edin.</div>
             </div>
             <div class="panel experience-card activity-card">
-                <div class="section-title compact-title"><div><h2>Son İşlemler</h2><p>Teknik servis işlem geçmişi.</p></div><button type="button" id="demoClearAuditBtn" class="ghost compact">Temizle</button></div>
+                <div class="section-title compact-title"><div><h2>Son İşlemler</h2><p>Gerçek modda GymsoftAgent üzerinden yapılan değişiklikler kaydedilir.</p></div><button type="button" id="demoClearAuditBtn" class="ghost compact">Yenile</button></div>
                 <div id="demoRecentActivity" class="timeline-list"></div>
             </div>
         </section>
@@ -584,7 +585,7 @@
         </section>
 
         <section class="panel app-page-section" id="preferencesExperience" data-page="settings">
-            <div class="section-title"><div><h2>Arayüz & Agent Ayarları</h2><p>Panel davranışını sadeleştiren kullanıcı tercihleri.</p></div><span class="status success">v8</span></div>
+            <div class="section-title"><div><h2>Arayüz & Agent Ayarları</h2><p>Panel davranışını sadeleştiren kullanıcı tercihleri.</p></div><span class="status success">v9</span></div>
             <div class="settings-grid">
                 <label class="setting-row"><div><strong>Deneyim Modu</strong><small>Gerçek Raspberry olmadan yeni ekranları deneyin.</small></div><input type="checkbox" id="demoModeSwitch"></label>
                 <label class="setting-row"><div><strong>Kritik işlem onayı</strong><small>Reboot, GPIO ve IP değişikliklerinde onay sor.</small></div><input type="checkbox" id="confirmCriticalSwitch" checked></label>
@@ -631,6 +632,50 @@
     <button type="button" id="quickGc3Btn" class="hidden" aria-hidden="true">gc3 Restart</button>
     </main>
 </div>
+
+<div class="ui-toast-stack" id="uiToastStack" aria-live="polite" aria-atomic="false"></div>
+
+<div class="ui-action-dock" id="uiActionDock" aria-live="polite">
+    <span class="ui-action-dot ready" id="uiActionDot"></span>
+    <div>
+        <small>İşlem Merkezi</small>
+        <strong id="uiActionText">Hazır · bir işlem seçin</strong>
+    </div>
+</div>
+
+<div class="ui-modal-backdrop hidden" id="uiConfirmBackdrop" role="presentation">
+    <section class="ui-modal" role="dialog" aria-modal="true" aria-labelledby="uiConfirmTitle" aria-describedby="uiConfirmMessage">
+        <div class="ui-modal-icon">!</div>
+        <div class="ui-modal-copy">
+            <span class="eyebrow">İŞLEM ONAYI</span>
+            <h2 id="uiConfirmTitle">İşlemi onaylayın</h2>
+            <p id="uiConfirmMessage"></p>
+        </div>
+        <div class="ui-modal-actions">
+            <button type="button" class="secondary" id="uiConfirmCancel">Vazgeç</button>
+            <button type="button" class="primary" id="uiConfirmOk">Onayla ve Devam Et</button>
+        </div>
+    </section>
+</div>
+
+<div class="ui-modal-backdrop hidden" id="commandPaletteBackdrop" role="presentation">
+    <section class="command-palette" role="dialog" aria-modal="true" aria-labelledby="commandPaletteTitle">
+        <div class="command-head">
+            <div>
+                <span class="eyebrow">HIZLI ERİŞİM</span>
+                <h2 id="commandPaletteTitle">Komut Paleti</h2>
+            </div>
+            <kbd>ESC</kbd>
+        </div>
+        <label class="command-search-label">
+            <span>Komut ara</span>
+            <input id="commandPaletteSearch" autocomplete="off" placeholder="Örn: kiosk, geçiş, sağlık, ağ tara…">
+        </label>
+        <div class="command-list" id="commandPaletteList"></div>
+        <div class="command-footer"><span>↑ ↓ gezin</span><span>Enter çalıştır</span><span>Ctrl+K aç/kapat</span></div>
+    </section>
+</div>
+
 <script src="./config.js"></script>
 <script src="./app.js"></script>
 </body>

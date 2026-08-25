@@ -1,25 +1,19 @@
-# RaspberryManager v8 — GitHub Pages
+# Gymsoft Raspberry Manager v10 Live
 
-Bu klasör doğrudan GitHub Pages'e yüklenebilir.
+Bu sürümde Dashboard içindeki **Alarm Merkezi** ve **Son İşlemler** gerçek moda bağlanmıştır.
 
-## Dosyalar
+## Gerçek mod
 
-- `index.html`
-- `app.css`
-- `app.js`
-- `config.js`
+- Alarm Merkezi, seçili ve doğrulanmış Raspberry'nin `/api/live-status` çıktısından yaklaşık 3,5 saniyede bir yeniden hesaplanır.
+- Sıcaklık, CPU, RAM, disk, throttled, ağ, Apache, gc3.py ve Chromium durumları gerçek alarm üretir.
+- Son İşlemler, `GymsoftAgent.exe` üzerinden yapılan gerçek değişiklikleri yerel audit dosyasından okur ve 5 saniyede bir yeniler.
+- Parola veya GitHub token audit dosyasına yazılmaz.
+- Gerçek modda örnek müşteri alarmı veya sahte işlem geçmişi gösterilmez.
 
-## Local Agent
+## Deneyim modu
 
-Varsayılan API:
+Deneyim Modu açık olduğunda örnek cihazlar, örnek alarmlar ve demo işlem geçmişi kullanılmaya devam eder. Bu veriler arayüz tanıtımı içindir ve gerçek veriden açıkça ayrılır.
 
-```text
-http://127.0.0.1:5000
-```
+## Gerekli Agent
 
-Adres `config.js` içerisinden değiştirilebilir.
-
-## Agent Olmadan Deneme
-
-Sayfanın üstündeki **Agent yoksa Demo Aç** butonuna basın.
-Bu mod gerçek SSH / GPIO / reboot işlemi yapmadan yeni v8 kullanıcı deneyimini simüle eder.
+Bu frontend'in canlı alarm ve gerçek işlem geçmişi özellikleri için `GymsoftAgent v10` kullanılmalıdır.
