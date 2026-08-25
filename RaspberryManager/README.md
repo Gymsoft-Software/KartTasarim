@@ -1,19 +1,14 @@
-# Gymsoft Raspberry Manager v10 Live
+# Gymsoft Raspberry Manager v11 — Live Device Focus
 
-Bu sürümde Dashboard içindeki **Alarm Merkezi** ve **Son İşlemler** gerçek moda bağlanmıştır.
+Bu sürüm kullanıcı geri bildirimine göre sadeleştirildi:
 
-## Gerçek mod
+- Üstteki Agent banner ve canlı cihaz çubuğu artık kaydırmada üst üste binmez.
+- Cihaz tarama ve SSH doğrulama aynı **Cihazlar** sayfasındadır.
+- Müşteri/Salon/Cihaz envanteri kaldırılmıştır.
+- Alarm Merkezi yalnızca seçili ve doğrulanmış Raspberry'nin canlı alarmlarını gösterir.
+- Son İşlemler yalnızca seçili IP için Agent audit kayıtlarını gösterir.
+- Release Durumu seçili Raspberry'deki kurulu release işaretçisini private GitHub reposunun Latest Release'i ile karşılaştırır.
+- Private repo karşılaştırması için GitHub token yalnızca istek sırasında kullanılır, kaydedilmez.
+- v11 ile GitHub üzerinden yapılan kurulumlarda release tag Raspberry üzerinde `/var/lib/gymsoft/release-version` dosyasına kaydedilir.
 
-- Alarm Merkezi, seçili ve doğrulanmış Raspberry'nin `/api/live-status` çıktısından yaklaşık 3,5 saniyede bir yeniden hesaplanır.
-- Sıcaklık, CPU, RAM, disk, throttled, ağ, Apache, gc3.py ve Chromium durumları gerçek alarm üretir.
-- Son İşlemler, `GymsoftAgent.exe` üzerinden yapılan gerçek değişiklikleri yerel audit dosyasından okur ve 5 saniyede bir yeniler.
-- Parola veya GitHub token audit dosyasına yazılmaz.
-- Gerçek modda örnek müşteri alarmı veya sahte işlem geçmişi gösterilmez.
-
-## Deneyim modu
-
-Deneyim Modu açık olduğunda örnek cihazlar, örnek alarmlar ve demo işlem geçmişi kullanılmaya devam eder. Bu veriler arayüz tanıtımı içindir ve gerçek veriden açıkça ayrılır.
-
-## Gerekli Agent
-
-Bu frontend'in canlı alarm ve gerçek işlem geçmişi özellikleri için `GymsoftAgent v10` kullanılmalıdır.
+> Eski kurulumlarda sürüm işaretçisi yoksa `Kurulu sürüm bilinmiyor` gösterilir. v11 ile yapılan sonraki GitHub kurulumu bunu otomatik oluşturur.

@@ -215,7 +215,7 @@ code { color: var(--yellow); }
 /* Canlı görev çubuğu + güvenlik / turnike kurulumu — MVP v4 */
 .live-status-bar {
     position: sticky;
-    top: 0;
+    top: 52px;
     z-index: 50;
     display: grid;
     grid-template-columns: minmax(190px, .9fr) 3.1fr;
@@ -496,6 +496,7 @@ body.demo-mode::after {
 /* GitHub Pages → Local Agent bağlantı çubuğu */
 .github-agent-banner {
     position: sticky; top: 0; z-index: 140;
+    min-height: 52px;
     display: flex; align-items: center; justify-content: space-between; gap: 14px;
     padding: 9px 16px; background: #0a0c10; border-bottom: 1px solid var(--border);
 }
@@ -734,3 +735,16 @@ button.demo-active { border-color:var(--yellow) !important; background:rgba(242,
 /* v10 live data cues */
 .alarm-item.live-ok { border-color: rgba(52, 211, 153, .38); background: rgba(52, 211, 153, .055); }
 .timeline-marker.error { background: #ef6464 !important; box-shadow: 0 0 0 3px rgba(239,100,100,.12); }
+
+
+/* v11 — stacked sticky headers + Cihazlar/SSH layout */
+.devices-ssh-mount { margin-top: 18px; }
+.devices-ssh-mount > .panel { margin-bottom: 0; }
+#install > .panel { width: 100%; }
+.release-status-current { color: var(--green) !important; }
+.release-status-outdated { color: var(--red) !important; }
+.release-status-unknown { color: var(--yellow) !important; }
+@media (max-width: 680px) {
+    .live-status-bar { position: static; top: auto; }
+    .github-agent-banner { position: sticky; top: 0; }
+}
