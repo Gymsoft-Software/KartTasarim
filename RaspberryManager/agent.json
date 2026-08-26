@@ -1,5 +1,5 @@
 {
-  "version": "v12-service-center",
+  "version": "v13-secure-installer",
   "download_url": "https://gymsoft-software.github.io/KartTasarim/RaspberryManager/downloads/GymsoftAgent.exe",
-  "notes": "Gymsoft Raspberry Manager v12 Service Center"
+  "notes": "v13: zorunlu Local Agent login, EXE indirme popup ve private GitHub Pi script seçimi."
 }

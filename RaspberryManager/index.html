@@ -3,13 +3,47 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gymsoft Raspberry Manager v12</title>
+    <title>Gymsoft Raspberry Manager v13</title>
     <link rel="stylesheet" href="./app.css">
 </head>
-<body>
+<body class="auth-locked">
+<div class="access-gate hidden" id="agentDownloadGate" role="dialog" aria-modal="true" aria-labelledby="agentDownloadTitle">
+    <div class="access-card agent-download-card">
+        <div class="access-icon">G</div>
+        <div class="access-copy">
+            <span class="access-eyebrow">GYMSOFT LOCAL AGENT</span>
+            <h1 id="agentDownloadTitle">GymsoftAgent.exe çalışmıyor</h1>
+            <p>Raspberry Manager ağ taraması, SSH ve kurulum işlemleri için bu bilgisayarda Local Agent'a ihtiyaç duyar.</p>
+            <div class="access-note">Agent kurulu değilse EXE dosyasını indirin, çalıştırın ve ardından bağlantıyı tekrar deneyin.</div>
+        </div>
+        <div class="access-actions">
+            <a class="button-link primary" id="agentDownloadBtn" href="./downloads/GymsoftAgent.exe" download>GymsoftAgent.exe İndir</a>
+            <button type="button" class="secondary" id="agentGateRetryBtn">Agent'ı Tekrar Kontrol Et</button>
+        </div>
+    </div>
+</div>
+
+<div class="access-gate hidden" id="authGate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
+    <div class="access-card login-card">
+        <div class="access-icon">G</div>
+        <div class="access-copy">
+            <span class="access-eyebrow">GÜVENLİ GİRİŞ</span>
+            <h1 id="authGateTitle">Raspberry Manager'a Giriş</h1>
+            <p id="authGateText">Devam etmek için yönetici hesabınızla giriş yapın.</p>
+        </div>
+        <form id="authForm" class="access-form" autocomplete="off">
+            <label><span>Kullanıcı Adı</span><input id="authUsername" type="text" autocomplete="username" required maxlength="64"></label>
+            <label><span>Parola</span><input id="authPassword" type="password" autocomplete="current-password" required minlength="10"></label>
+            <label id="authPasswordRepeatRow" class="hidden"><span>Parola Tekrar</span><input id="authPasswordRepeat" type="password" autocomplete="new-password" minlength="10"></label>
+            <div class="access-error hidden" id="authError"></div>
+            <button type="submit" class="primary full-button" id="authSubmitBtn">Giriş Yap</button>
+        </form>
+        <div class="access-security">Parola tarayıcıya veya GitHub Pages'e kaydedilmez. Agent yalnızca salt + PBKDF2-SHA256 parola özeti saklar.</div>
+    </div>
+</div>
 <div class="github-agent-banner" id="agentBanner">
   <div><strong>GymsoftAgent.exe</strong><span id="agentState">Local Agent bağlantısı kontrol ediliyor…</span></div>
-  <div class="agent-banner-actions"><button type="button" class="secondary compact" id="agentCheckBtn">Tekrar Dene</button><button type="button" class="ghost compact" id="agentDemoBtn">Agent yoksa Demo Aç</button></div>
+  <div class="agent-banner-actions"><button type="button" class="secondary compact" id="agentCheckBtn">Tekrar Dene</button><button type="button" class="ghost compact hidden" id="authLogoutBtn">Oturumu Kapat</button></div>
 </div>
 
 <div class="shell">
@@ -33,7 +67,7 @@
             <a href="#settings" data-page-link="settings"><span>⚙</span><div><strong>Ayarlar</strong><small>Güvenlik & agent</small></div></a>
         </nav>
         <div class="sidebar-note">
-            <strong>GYMSOFT Manager v12</strong>
+            <strong>GYMSOFT Manager v13</strong>
             <span id="sidebarModeText">Gerçek cihaz modu</span>
             <span class="sidebar-agent" id="sidebarAgentText">Agent bekleniyor</span>
         </div>
@@ -95,7 +129,7 @@
                 <div class="metric-tile"><span>RAM</span><strong id="dashRam">--%</strong><small>kullanılan bellek</small></div>
                 <div class="metric-tile"><span>Disk</span><strong id="dashDisk">--%</strong><small>kök dosya sistemi</small></div>
                 <div class="metric-tile"><span>Apache</span><strong id="dashApache">--</strong><small>web servisi</small></div>
-                <div class="metric-tile"><span>gc3.py</span><strong id="dashGc3">--</strong><small>turnike kontrolü</small></div>
+                <div class="metric-tile"><span>gc3.py</span><strong id="dashGc3">--</strong><small>event-driven geçiş dosyası</small></div>
                 <div class="metric-tile health-score-tile"><span>Sağlık Skoru</span><strong id="dashHealthScore">--/100</strong><small id="dashHealthReasons">canlı değerlendirme</small></div>
             </div>
 
@@ -203,6 +237,26 @@
                         <button type="button" id="toggleToken" class="ghost">Göster</button>
                     </div>
                 </label>
+
+                <div class="installer-source-box">
+                    <div class="section-title compact-title">
+                        <div>
+                            <h3>Raspberry Pi Kurulum Scripti</h3>
+                            <p>Private Turnike reposundaki <code>Scripts/Pi3Kurulum</code> scriptlerinden istediğinizi seçebilirsiniz.</p>
+                        </div>
+                        <span id="installerScriptState" class="status neutral">Entegre</span>
+                    </div>
+                    <div class="release-row">
+                        <label>
+                            <span>Kurulum Scripti</span>
+                            <select id="installerScriptSelect">
+                                <option value="">Panel v13 Entegre Kurulum Scripti (Önerilen)</option>
+                            </select>
+                        </label>
+                        <button type="button" id="loadInstallerScriptsBtn" class="secondary">Pi Scriptlerini Getir</button>
+                    </div>
+                    <div class="info-box muted">Not: Eski scriptler terminalde <code>read</code> ile soru soruyorsa web üzerinden etkileşimli cevap alamaz. Otomasyon uyumlu scriptleri tercih edin.</div>
+                </div>
 
                 <label>
                     <span>HTML Kurulum Kaynağı</span>
@@ -440,7 +494,7 @@
             <div class="section-title">
                 <div>
                     <h2>Turnike</h2>
-                    <p>Geçiş kontrolü, yön/süre/renk ayarları ile Apache, Chromium ve gc3.py servislerini yönetir.</p>
+                    <p>Geçiş kontrolü, yön/süre/renk ayarları ile Apache ve Chromium servislerini yönetir. gc3.py kart/geçiş olayı sırasında çalışır.</p>
                 </div>
                 <span id="turnstileState" class="status neutral">Ayarlar okunmadı</span>
             </div>
@@ -497,7 +551,7 @@
             <div class="control-card service-card">
                 <div class="control-heading">
                     <div>
-                        <h3>Apache / Chromium / gc3.py</h3>
+                        <h3>Apache / Chromium / gc3.py Durumu</h3>
                         <p>Turnike servislerinin durumunu kontrol edin veya gerektiğinde yeniden başlatın.</p>
                     </div>
                 </div>
@@ -505,7 +559,7 @@
                     <button type="button" id="turnServiceStatusBtn" class="secondary">Durumları Kontrol Et</button>
                     <button type="button" id="apacheRestartBtn" class="secondary">Apache Restart</button>
                     <button type="button" id="chromiumRestartBtn" class="secondary">Chromium Restart</button>
-                    <button type="button" id="gc3RestartBtn" class="secondary">gc3.py Restart</button>
+                    <button type="button" id="gc3RestartBtn" class="secondary">gc3.py Durumunu Kontrol Et</button>
                 </div>
                 <pre id="turnServiceOutput" class="tool-output">Servis durumları henüz kontrol edilmedi.</pre>
             </div>
@@ -638,7 +692,7 @@
             </div>
             <pre id="logBox">Kurulum başlatıldığında loglar burada görüntülenecek.</pre>
         </section>
-    <button type="button" id="quickGc3Btn" class="hidden" aria-hidden="true">gc3 Restart</button>
+    <button type="button" id="quickGc3Btn" class="hidden" aria-hidden="true">gc3 Durum</button>
     </main>
 </div>
 

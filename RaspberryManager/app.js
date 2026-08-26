@@ -19,13 +19,20 @@ function apiUrl(url) {
     if (/^https?:\/\//i.test(url)) return url;
     return `${API_BASE}${url.startsWith("/") ? url : `/${url}`}`;
 }
+const AUTH_TOKEN_KEY = "gymsoft.manager.auth.token";
+function getAuthToken(){ return sessionStorage.getItem(AUTH_TOKEN_KEY) || ""; }
+function setAuthToken(token){ if(token) sessionStorage.setItem(AUTH_TOKEN_KEY, token); else sessionStorage.removeItem(AUTH_TOKEN_KEY); }
 async function api(url, options = {}) {
-    const response = await fetch(apiUrl(url), {
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-        ...options,
-    });
+    const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+    const token = getAuthToken();
+    if (token && !/^https?:\/\//i.test(url)) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(apiUrl(url), { ...options, headers });
     const contentType = response.headers.get("content-type") || "";
     const data = contentType.includes("application/json") ? await response.json() : { ok: response.ok, error: await response.text() };
+    if (response.status === 401 && data?.auth_required) {
+        setAuthToken("");
+        if (typeof showAuthGate === "function") showAuthGate({setup:false, message:"Oturum süresi doldu. Tekrar giriş yapın."});
+    }
     if (!response.ok || data.ok === false) throw new Error(data.error || `HTTP ${response.status}`);
     return data;
 }
@@ -202,7 +209,7 @@ function updateDashboard(status) {
     $("dashRam").textContent = `${ram.toFixed(1)}%`;
     $("dashDisk").textContent = `${disk.toFixed(1)}%`;
     $("dashApache").textContent = status.apache_active ? "AKTİF" : "KAPALI";
-    $("dashGc3").textContent = status.gc3_active ? "AKTİF" : "KAPALI";
+    $("dashGc3").textContent = status.gc3_ready ? (status.gc3_running ? "GEÇİŞTE" : "HAZIR") : "DOSYA YOK";
     if ($("dashHealthScore")) $("dashHealthScore").textContent = `${Number(status.health_score ?? 0).toFixed(0)}/100`;
     if ($("dashHealthReasons")) $("dashHealthReasons").textContent = (status.health_reasons || []).slice(0,2).join(" · ") || "Sorun tespit edilmedi";
     $("dashDeviceName").textContent = `${status.hostname || "Raspberry"} · ${selectedDevice}`;
@@ -210,7 +217,7 @@ function updateDashboard(status) {
 
     const throttleBad = status.throttled && !String(status.throttled).endsWith("0x0");
     const bad = !status.apache_active || !status.network_active || (temp !== null && temp >= 80);
-    const warn = throttleBad || !status.gc3_active || (temp !== null && temp >= 70) || cpu >= 85 || disk >= 90;
+    const warn = throttleBad || !status.gc3_ready || (temp !== null && temp >= 70) || cpu >= 85 || disk >= 90;
     const badge = $("dashHealthBadge");
     badge.className = `dashboard-health ${bad ? "bad" : warn ? "warn" : "ok"}`;
     badge.textContent = `${bad ? "KRİTİK" : warn ? "DİKKAT" : "NORMAL"}${status.health_score !== undefined ? ` · ${Number(status.health_score).toFixed(0)}/100` : ""}`;
@@ -270,7 +277,7 @@ async function refreshLiveStatus() {
         $("liveDisk").textContent = `${Number(s.disk_percent).toFixed(1)}%`;
         $("liveThrottle").textContent = s.throttled || "-";
         $("liveNetwork").textContent = s.network_active ? `Aktif · ${formatUptime(s.uptime_seconds)}` : "Route yok";
-        $("liveTurnstile").textContent = `${s.apache_active ? "Apache ✓" : "Apache ×"} · ${s.gc3_active ? "gc3 ✓" : "gc3 ×"}`;
+        $("liveTurnstile").textContent = `${s.apache_active ? "Apache ✓" : "Apache ×"} · ${s.gc3_ready ? (s.gc3_running ? "gc3 geçişte" : "gc3 hazır") : "gc3 dosya yok"}`;
         updateDashboard(s);
         renderLiveAlarms(s.alarms || []);
     } catch (err) {
@@ -338,6 +345,23 @@ $("toggleToken").addEventListener("click", () => {
     $("toggleToken").textContent = input.type === "password" ? "Göster" : "Gizle";
 });
 
+async function loadPiInstallerScripts(){
+    const token=$("githubToken")?.value.trim()||"";
+    if(!token){ showToast("Private GitHub Pi scriptlerini listelemek için token girin.","warning","Kurulum Scripti"); return; }
+    const btn=$("loadInstallerScriptsBtn"); if(btn)btn.disabled=true;
+    setStatus($("installerScriptState"),"Yükleniyor","running");
+    try{
+        const data=await api("/api/github/pi-scripts",{method:"POST",body:JSON.stringify({token})});
+        const select=$("installerScriptSelect");
+        select.innerHTML='<option value="">Panel v13 Entegre Kurulum Scripti (Önerilen)</option>' + (data.scripts||[]).map(s=>`<option value="${escapeHtml(s.path)}">${escapeHtml(s.name)}</option>`).join("");
+        setStatus($("installerScriptState"),`${(data.scripts||[]).length} script`,"success");
+        showToast(`${(data.scripts||[]).length} Pi kurulum scripti listelendi.`,"success","Private GitHub");
+    }catch(err){ setStatus($("installerScriptState"),"Hata","error"); showToast(err.message,"error","Kurulum Scripti"); }
+    finally{ if(btn)btn.disabled=false; }
+}
+$("loadInstallerScriptsBtn")?.addEventListener("click",loadPiInstallerScripts);
+$("installerScriptSelect")?.addEventListener("change",()=>setStatus($("installerScriptState"),$("installerScriptSelect").value?"GitHub Script":"Entegre","success"));
+
 $("installMode").addEventListener("change", () => {
     $("releaseArea").classList.toggle("hidden", $("installMode").value !== "github_release");
 });
@@ -380,7 +404,7 @@ async function runPrecheck({silent=false}={}) {
     const btn=$("precheckBtn"); if(btn)btn.disabled=true;
     setStatus($("precheckState"),"Kontrol ediliyor","running");
     try{
-        const data=await api('/api/precheck',{method:'POST',body:JSON.stringify({...target,github_token:$("githubToken")?.value.trim()||'',install_mode:$("installMode")?.value||'github_latest'})});
+        const data=await api('/api/precheck',{method:'POST',body:JSON.stringify({...target,github_token:$("githubToken")?.value.trim()||'',install_mode:$("installMode")?.value||'github_latest',installer_path:$("installerScriptSelect")?.value||''})});
         renderPrecheck(data); lastPrecheck={device:selectedDevice,ready:!!data.ready,at:Date.now()};
         if(!silent) showToast(data.ready?'Cihaz kuruluma hazır.':'Kurulum öncesi zorunlu kontrollerde sorun var.',data.ready?'success':'error','Kurulum Öncesi Kontrol');
         return !!data.ready;
@@ -426,6 +450,7 @@ $("installBtn").addEventListener("click", async () => {
                 token: $("githubToken").value.trim(),
                 mode,
                 release_tag: $("releaseSelect").value,
+                installer_path: $("installerScriptSelect")?.value || "",
                 reboot: $("rebootAfter").checked,
             }),
         });
@@ -910,7 +935,7 @@ async function runTurnService(action, buttonId, confirmText = "") {
 $("turnServiceStatusBtn").addEventListener("click", () => runTurnService("status", "turnServiceStatusBtn"));
 $("apacheRestartBtn").addEventListener("click", () => runTurnService("apache_restart", "apacheRestartBtn", "Apache yeniden başlatılsın mı?"));
 $("chromiumRestartBtn").addEventListener("click", () => runTurnService("chromium_restart", "chromiumRestartBtn", "Chromium kiosk yeniden başlatılsın mı?"));
-$("gc3RestartBtn").addEventListener("click", () => runTurnService("gc3_restart", "gc3RestartBtn", "gc3.py yeniden başlatılsın mı?"));
+$("gc3RestartBtn").addEventListener("click", () => runTurnService("gc3_check", "gc3RestartBtn", "gc3.py dosyası ve anlık geçiş durumu kontrol edilsin mi?"));
 
 $("diagnoseBtn").addEventListener("click", () => runTextTool({
     button: "diagnoseBtn",
@@ -1152,7 +1177,7 @@ $("quickOpenBtn")?.addEventListener("click", () => sendTurnstileAction("open"));
 $("dashOpenBtn")?.addEventListener("click", () => sendTurnstileAction("open"));
 $("dashLockBtn")?.addEventListener("click", () => sendTurnstileAction("lock"));
 $("quickKioskBtn")?.addEventListener("click", () => runTurnService("chromium_restart", "quickKioskBtn", "Chromium kiosk yeniden başlatılsın mı?"));
-$("quickGc3Btn")?.addEventListener("click", () => runTurnService("gc3_restart", "quickGc3Btn", "gc3.py yeniden başlatılsın mı?"));
+$("quickGc3Btn")?.addEventListener("click", () => runTurnService("gc3_check", "quickGc3Btn", "gc3.py durumu kontrol edilsin mi?"));
 $("dashDiagnoseBtn")?.addEventListener("click", () => {
     if (typeof navigateToPage === "function") navigateToPage("diagnostics");
     setTimeout(() => $("diagnoseBtn")?.click(), 120);
@@ -1374,7 +1399,7 @@ const DEMO_INVENTORY = [
 let demoInventory = DEMO_INVENTORY.map(item => ({...item}));
 let demoWizardStep = 1;
 let demoWizardData = { profile: "Pi 5 Wayland", ip: "192.168.1.120", user: "gymsoft", direction: "cift", seconds: 9, release: "v22.2" };
-const TURN_TESTS = ["Bobin 1", "Bobin 2", "Buzzer", "LED", "Switch", "Apache / gircik.php", "gc3.py servisi"];
+const TURN_TESTS = ["Bobin 1", "Bobin 2", "Buzzer", "LED", "Switch", "Apache / gircik.php", "gc3.py dosyası"];
 let turnTestRunId = 0;
 let demoAudit = [
     { time: "10:42:18", user: "Teknik-1", target_ip:"192.168.1.101", text: "Kiosk yeniden başlatıldı", type: "success" },
@@ -1493,7 +1518,7 @@ function applyDemoLiveStatus() {
     const cpu = item.status === "warning" ? 55 + Math.random()*18 : 22 + Math.random() * 14;
     const throttled = item.status === "warning" ? "0x50005" : "0x0";
     const host = `GYM-TURNIKE-${item.ip.split('.').pop()}`;
-    const status = { temperature:t, cpu_percent:cpu, ram_percent:46.2, disk_percent:31.8, throttled:`throttled=${throttled}`, network_active:true, uptime_seconds:218400, apache_active:true, gc3_active:true, hostname:host };
+    const status = { temperature:t, cpu_percent:cpu, ram_percent:46.2, disk_percent:31.8, throttled:`throttled=${throttled}`, network_active:true, uptime_seconds:218400, apache_active:true, gc3_ready:true, gc3_running:false, gc3_active:true, hostname:host };
     setLiveConnection("Aktif · Demo", true);
     $("liveDevice").textContent = `${item.ip} · ${host}`;
     $("liveTemp").textContent = `${t.toFixed(1)} °C`;
@@ -1502,7 +1527,7 @@ function applyDemoLiveStatus() {
     $("liveDisk").textContent = "31.8%";
     $("liveThrottle").textContent = throttled;
     $("liveNetwork").textContent = "Aktif · 60s 40dk";
-    $("liveTurnstile").textContent = "Apache ✓ · gc3 ✓";
+    $("liveTurnstile").textContent = "Apache ✓ · gc3 hazır";
     updateDashboard(status);
     renderDemoAlarms();
 }
@@ -1562,7 +1587,7 @@ function installDemoInterceptors() {
         quickOpenBtn:"Geçiş izni verildi", dashOpenBtn:"Geçiş izni verildi", openTurnstileBtn:"Geçiş izni verildi",
         dashLockBtn:"Turnike kilitlendi", lockTurnstileBtn:"Turnike kilitlendi",
         quickKioskBtn:"Kiosk yeniden başlatıldı", chromiumRestartBtn:"Kiosk yeniden başlatıldı",
-        quickGc3Btn:"gc3.py yeniden başlatıldı", gc3RestartBtn:"gc3.py yeniden başlatıldı",
+        quickGc3Btn:"gc3.py durumu kontrol edildi", gc3RestartBtn:"gc3.py durumu kontrol edildi",
         quickRebootBtn:"Reboot komutu simüle edildi", apacheRestartBtn:"Apache yeniden başlatıldı",
         gpioBuzzerBtn:"Buzzer testi tamamlandı", gpioLedBtn:"LED testi tamamlandı", gpioCoil1Btn:"Bobin 1 testi tamamlandı", gpioCoil2Btn:"Bobin 2 testi tamamlandı",
     };
@@ -1647,9 +1672,6 @@ async function checkGitHubPagesAgent() {
         state.className = "agent-offline";
     }
 }
-document.getElementById("agentCheckBtn")?.addEventListener("click", checkGitHubPagesAgent);
-document.getElementById("agentDemoBtn")?.addEventListener("click", () => setDemoMode(true));
-checkGitHubPagesAgent();
 
 
 /* ========================================================================== 
@@ -1825,9 +1847,9 @@ function runV9DemoAction(id, btn) {
     if (["gpioReadBtn","gpioSwitchBtn"].includes(id)) { delay(()=>{ renderGpioPins({switch:21,coil1:6,coil2:5,buzzer:13,led:11}); demoOutput("gpioResult", id==="gpioSwitchBtn"?"Switch durumu: KAPALI":"GPIO pinleri gc3.py üzerinden okundu."); setStatus($("gpioState"),"Tamamlandı","success"); demoFinishButton(btn,"GPIO",id==="gpioSwitchBtn"?"Switch durumu okundu.":"GPIO pinleri okundu."); },450); return true; }
     if (id === "loadTurnstileConfigBtn") { delay(()=>{ $("turnDirection").value="cift"; $("transitionSeconds").value="9"; $("turnColorHex").value="#00b8d9"; $("turnColor").value="#00b8d9"; $("colorPreview").style.background="#00b8d9"; setStatus($("turnstileState"),"Okundu","success"); demoFinishButton(btn,"Turnike Ayarları","Mevcut yön, süre ve renk okundu."); },520); return true; }
     if (id === "saveTurnstileConfigBtn") { delay(()=>{ setStatus($("turnstileState"),"Kaydedildi","success"); demoOutput("turnstileActionResult","Deneyim Modu: yön / süre / renk ayarları kaydedildi."); demoFinishButton(btn,"Turnike Ayarları","Turnike ayarları kaydedildi."); },600); return true; }
-    if (id === "turnServiceStatusBtn") { delay(()=>{ demoOutput("turnServiceOutput","Apache    : active ✓\nChromium  : running ✓\ngc3.py    : running ✓\nKiosk URL : HTTP 200 ✓"); demoFinishButton(btn,"Servisler","Turnike servisleri aktif."); },500); return true; }
-    if (id === "diagnoseBtn") { delay(()=>{ demoOutput("diagnoseOutput","=== GYMSOFT HIZLI ARIZA TESPİTİ ===\n✓ Raspberry: ONLINE\n✓ Apache: active\n✓ gircik.php: HTTP 200\n✓ gc3.py: running\n✓ Chromium: running\n✓ Gateway: 4 ms\n✓ Throttled: 0x0\n\nSONUÇ: Kritik arıza bulunamadı."); setStatus($("diagnoseState"),"Sorun yok","success"); demoFinishButton(btn,"Arıza Tespiti","Hızlı teşhis tamamlandı; kritik sorun yok."); },900); return true; }
-    if (id === "loadLogBtn") { delay(()=>{ demoOutput("maintenanceOutput","12:01:14 [INFO] Apache aktif\n12:01:15 [INFO] gc3.py heartbeat OK\n12:01:16 [INFO] Chromium kiosk HTTP 200\n12:01:17 [INFO] sıcaklık=47.6°C cpu=28%\n12:01:18 [INFO] sağlık kontrol döngüsü tamamlandı"); setStatus($("maintenanceState"),"Log okundu","success"); demoFinishButton(btn,"Log Merkezi","Demo logları getirildi."); },550); return true; }
+    if (id === "turnServiceStatusBtn") { delay(()=>{ demoOutput("turnServiceOutput","Apache    : active ✓\nChromium  : running ✓\ngc3.py    : hazır / beklemede ✓\nKiosk URL : HTTP 200 ✓"); demoFinishButton(btn,"Servisler","Turnike servisleri aktif."); },500); return true; }
+    if (id === "diagnoseBtn") { delay(()=>{ demoOutput("diagnoseOutput","=== GYMSOFT HIZLI ARIZA TESPİTİ ===\n✓ Raspberry: ONLINE\n✓ Apache: active\n✓ gircik.php: HTTP 200\n✓ gc3.py: hazır (event-driven)\n✓ Chromium: running\n✓ Gateway: 4 ms\n✓ Throttled: 0x0\n\nSONUÇ: Kritik arıza bulunamadı."); setStatus($("diagnoseState"),"Sorun yok","success"); demoFinishButton(btn,"Arıza Tespiti","Hızlı teşhis tamamlandı; kritik sorun yok."); },900); return true; }
+    if (id === "loadLogBtn") { delay(()=>{ demoOutput("maintenanceOutput","12:01:14 [INFO] Apache aktif\n12:01:15 [INFO] gc3.py dosyası hazır; event-driven beklemede\n12:01:16 [INFO] Chromium kiosk HTTP 200\n12:01:17 [INFO] sıcaklık=47.6°C cpu=28%\n12:01:18 [INFO] sağlık kontrol döngüsü tamamlandı"); setStatus($("maintenanceState"),"Log okundu","success"); demoFinishButton(btn,"Log Merkezi","Demo logları getirildi."); },550); return true; }
     if (id === "downloadBackupBtn") { delay(()=>{ demoOutput("maintenanceOutput","Deneyim Modu: gymsoft-config-demo.tar.gz yedeği oluşturuldu (indirme simüle edildi)."); setStatus($("maintenanceState"),"Yedek hazır","success"); demoFinishButton(btn,"Yedekleme","Konfigürasyon yedeği hazırlandı."); },650); return true; }
     return false;
 }
@@ -1940,7 +1962,7 @@ function initV9Ux() {
             const cmds=filteredCommands(); if(e.key==="ArrowDown"){e.preventDefault();__commandIndex=Math.min(cmds.length-1,__commandIndex+1);renderCommandPalette();} if(e.key==="ArrowUp"){e.preventDefault();__commandIndex=Math.max(0,__commandIndex-1);renderCommandPalette();} if(e.key==="Enter"){e.preventDefault();runCommandAt(__commandIndex);}
         }
     });
-    showToast("v12 servis merkezi hazır. Butonlar artık işlem durumu ve sonuç bildirimi gösterir.","info","Arayüz güncellendi");
+    showToast("v13 güvenli servis merkezi hazır. Butonlar artık işlem durumu ve sonuç bildirimi gösterir.","info","Arayüz güncellendi");
 }
 
 
@@ -1964,3 +1986,91 @@ $("githubToken")?.addEventListener("input",()=>{
     clearTimeout(__releaseTokenTimer);
     __releaseTokenTimer=setTimeout(()=>refreshReleaseStatus({silent:true}),700);
 });
+
+
+/* ========================================================================== 
+   Gymsoft Raspberry Manager v13 — Login gate + Agent download bootstrap
+   ========================================================================== */
+let __authSetupMode=false;
+let __authBootBusy=false;
+function lockApplication(){ document.body.classList.add("auth-locked"); }
+function unlockApplication(){
+    document.body.classList.remove("auth-locked");
+    $("authGate")?.classList.add("hidden");
+    $("agentDownloadGate")?.classList.add("hidden");
+    $("authLogoutBtn")?.classList.remove("hidden");
+}
+function showAgentDownloadGate(){
+    lockApplication();
+    $("authGate")?.classList.add("hidden");
+    const gate=$("agentDownloadGate"); gate?.classList.remove("hidden");
+    const link=$("agentDownloadBtn"); if(link) link.href=String(window.GYMSOFT_AGENT_DOWNLOAD_URL||"./downloads/GymsoftAgent.exe");
+    $("authLogoutBtn")?.classList.add("hidden");
+}
+function showAuthGate({setup=false,message=""}={}){
+    lockApplication(); __authSetupMode=!!setup;
+    $("agentDownloadGate")?.classList.add("hidden");
+    $("authGate")?.classList.remove("hidden");
+    $("authPasswordRepeatRow")?.classList.toggle("hidden",!setup);
+    $("authGateTitle").textContent=setup?"İlk Yönetici Hesabını Oluştur":"Raspberry Manager'a Giriş";
+    $("authGateText").textContent=message||(setup?"Bu bilgisayardaki Local Agent için ilk yönetici hesabını oluşturun. Parola geri okunabilir biçimde saklanmaz.":"Devam etmek için yönetici hesabınızla giriş yapın.");
+    $("authSubmitBtn").textContent=setup?"Hesabı Oluştur ve Giriş Yap":"Giriş Yap";
+    $("authPassword").autocomplete=setup?"new-password":"current-password";
+    $("authError")?.classList.add("hidden");
+    $("authLogoutBtn")?.classList.add("hidden");
+    setTimeout(()=>$("authUsername")?.focus(),60);
+}
+function authError(text){ const box=$("authError"); if(!box)return; box.textContent=text; box.classList.remove("hidden"); }
+async function bootstrapAuth(){
+    try{
+        const status=await api("/api/auth/status",{method:"GET"});
+        if(status.authenticated){ unlockApplication(); return true; }
+        if(!status.configured){ showAuthGate({setup:true}); return false; }
+        showAuthGate({setup:false}); return false;
+    }catch(err){ showAuthGate({setup:false,message:err.message}); return false; }
+}
+$("authForm")?.addEventListener("submit",async e=>{
+    e.preventDefault();
+    const username=$("authUsername").value.trim(), password=$("authPassword").value, repeat=$("authPasswordRepeat").value;
+    if(__authSetupMode && password!==repeat){ authError("Parolalar eşleşmiyor."); return; }
+    const btn=$("authSubmitBtn"); btn.disabled=true; $("authError")?.classList.add("hidden");
+    try{
+        const endpoint=__authSetupMode?"/api/auth/setup":"/api/auth/login";
+        const data=await api(endpoint,{method:"POST",body:JSON.stringify({username,password})});
+        setAuthToken(data.token||"");
+        $("authPassword").value=""; $("authPasswordRepeat").value="";
+        unlockApplication();
+        showToast(`Oturum açıldı · ${data.username||username}`,"success","Güvenli Giriş");
+        checkGitHubPagesAgent();
+    }catch(err){ authError(err.message); }
+    finally{ btn.disabled=false; }
+});
+$("authLogoutBtn")?.addEventListener("click",async()=>{
+    try{ await api("/api/auth/logout",{method:"POST",body:"{}"}); }catch(_e){}
+    setAuthToken(""); showAuthGate({setup:false,message:"Oturum kapatıldı. Tekrar giriş yapın."});
+});
+$("agentGateRetryBtn")?.addEventListener("click",()=>checkGitHubPagesAgent());
+
+async function checkGitHubPagesAgent(){
+    if(__authBootBusy)return; __authBootBusy=true;
+    const state=$("agentState");
+    if(state){state.textContent=`Kontrol ediliyor · ${API_BASE}`;state.className="agent-checking";}
+    try{
+        const data=await api("/api/agent-status",{method:"GET"});
+        window.GYMSOFT_AGENT_ONLINE=true;document.body.classList.remove("agent-offline-mode");
+        if(state){state.textContent=`Bağlı · ${data.name||"Gymsoft Local Agent"} · ${data.version||"v13"}`;state.className="agent-online";}
+        if(data.default_cidr && $("cidr")?.value==="192.168.1.0/24") $("cidr").value=data.default_cidr;
+        refreshAgentBadge(); setActionDock("Local Agent bağlı · giriş kontrol ediliyor","success");
+        await bootstrapAuth();
+    }catch(err){
+        window.GYMSOFT_AGENT_ONLINE=false;document.body.classList.add("agent-offline-mode");setAuthToken("");
+        if(state){state.textContent=`Bağlanamadı · GymsoftAgent.exe çalışmıyor (${API_BASE})`;state.className="agent-offline";}
+        setActionDock("Local Agent gerekli","error"); showAgentDownloadGate();
+    }finally{__authBootBusy=false;}
+}
+
+// Existing banner retry now uses the secure bootstrap.
+$("agentCheckBtn")?.addEventListener("click",()=>checkGitHubPagesAgent());
+// Start from a locked page every time; sessionStorage token can unlock only after Agent validation.
+lockApplication();
+setTimeout(()=>checkGitHubPagesAgent(),30);
