@@ -1,3 +1,7 @@
+# v13.4 Güç Telemetrisi Notu
+
+5V besleme, core voltaj/akım ve Acil Durum Logu eklendi. Ayrıntı için `CHANGELOG_V13_4.md`.
+
 # Gymsoft Raspberry Manager v12 Service Center
 
 GitHub Pages üzerinde çalışan web arayüzüdür. SSH, ağ taraması ve Raspberry işlemleri yerel bilgisayardaki `GymsoftAgent.exe` üzerinden yapılır.

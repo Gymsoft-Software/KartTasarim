@@ -70,6 +70,8 @@
                 <div class="live-metric"><span>CPU</span><strong id="liveCpu">--%</strong></div>
                 <div class="live-metric"><span>RAM</span><strong id="liveRam">--%</strong></div>
                 <div class="live-metric"><span>Disk</span><strong id="liveDisk">--%</strong></div>
+                <div class="live-metric"><span>Besleme</span><strong id="livePower">--</strong></div>
+                <div class="live-metric"><span>Core Akım</span><strong id="liveCurrent">-- A</strong></div>
                 <div class="live-metric"><span>Throttled</span><strong id="liveThrottle">--</strong></div>
                 <div class="live-metric"><span>Ağ</span><strong id="liveNetwork">--</strong></div>
                 <div class="live-metric"><span>Turnike</span><strong id="liveTurnstile">--</strong></div>
@@ -91,7 +93,7 @@
                 <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
                 <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
                 <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
-                <span class="badge">v12 Service Center</span>
+                <span class="badge">v13.4 Power Monitor</span>
             </div>
         </header>
 
@@ -110,6 +112,10 @@
                 <div class="metric-tile"><span>CPU</span><strong id="dashCpu">--%</strong><small>anlık kullanım</small></div>
                 <div class="metric-tile"><span>RAM</span><strong id="dashRam">--%</strong><small>kullanılan bellek</small></div>
                 <div class="metric-tile"><span>Disk</span><strong id="dashDisk">--%</strong><small>kök dosya sistemi</small></div>
+                <div class="metric-tile power-tile"><span>5V Besleme</span><strong id="dashInputVoltage">-- V</strong><small id="dashInputVoltageNote">PMIC/ADC ölçümü</small></div>
+                <div class="metric-tile power-tile"><span>Core Voltaj</span><strong id="dashCoreVoltage">-- V</strong><small>CPU/SoC core rayı</small></div>
+                <div class="metric-tile power-tile"><span>Core Akımı</span><strong id="dashCoreCurrent">-- A</strong><small>VDD_CORE; toplam giriş akımı değil</small></div>
+                <div class="metric-tile power-tile"><span>Giriş Akımı</span><strong id="dashInputCurrent">-- A</strong><small id="dashInputCurrentNote">harici sensör gerekebilir</small></div>
                 <div class="metric-tile"><span>Apache</span><strong id="dashApache">--</strong><small>web servisi</small></div>
                 <div class="metric-tile"><span>gc3.py</span><strong id="dashGc3">--</strong><small>event-driven geçiş dosyası</small></div>
                 <div class="metric-tile health-score-tile"><span>Sağlık Skoru</span><strong id="dashHealthScore">--/100</strong><small id="dashHealthReasons">canlı değerlendirme</small></div>
@@ -399,11 +405,12 @@
                 <div class="section-title">
                     <div>
                         <h2>Raspberry Sağlık</h2>
-                        <p>Sıcaklık, voltaj, throttled, CPU, RAM, disk ve Wi-Fi bilgileri.</p>
+                        <p>Sıcaklık, 5V besleme, core voltaj/akım, throttled, CPU, RAM, disk ve ağ bilgileri.</p>
                     </div>
                     <span id="healthState" class="status neutral">Hazır</span>
                 </div>
                 <button type="button" id="healthBtn" class="primary">Sağlık Bilgilerini Getir</button>
+                <div id="powerExplain" class="info-box muted"><strong>Güç Telemetrisi:</strong> Canlı Raspberry durumu alındığında besleme voltajı ve kullanılabilen akım ölçümleri burada açıklanır.</div>
                 <div id="throttledExplain" class="info-box muted"><strong>Throttled Açıklaması:</strong> Canlı Raspberry durumu alındığında 0x değerinin anlamı burada açıklanır.</div>
                 <pre id="healthOutput" class="tool-output">Henüz sağlık bilgisi alınmadı.</pre>
             </div>
@@ -557,6 +564,13 @@
                     <span class="status neutral" id="demoAlarmCount">Canlı bekliyor</span>
                 </div>
                 <div id="demoAlarmList" class="alarm-list"></div>
+            </div>
+            <div class="panel experience-card emergency-log-card">
+                <div class="section-title compact-title">
+                    <div><h2>Acil Durum Logu</h2><p>Seçili Raspberry için düşük voltaj, aktif throttling ve ölçülebilen kritik güç olayları.</p></div>
+                    <span class="status neutral" id="emergencyLogCount">Bekliyor</span>
+                </div>
+                <div id="emergencyLogList" class="alarm-list"></div>
             </div>
             <div class="panel experience-card">
                 <div class="section-title compact-title"><div><h2>Release Durumu</h2><p>Seçili Raspberry’de kurulu sürüm GitHub Latest Release ile karşılaştırılır.</p></div><span class="status neutral" id="releaseCompareState">Bekliyor</span></div>

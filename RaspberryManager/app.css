@@ -234,7 +234,7 @@ code { color: var(--yellow); }
 .live-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 10px; }
 .live-dot.online { background: var(--green); box-shadow: 0 0 0 4px rgba(84,201,135,.10); }
 .live-dot.offline { background: var(--red); box-shadow: 0 0 0 4px rgba(239,103,103,.08); }
-.live-metrics { display: grid; grid-template-columns: repeat(8, minmax(70px, 1fr)); gap: 7px; }
+.live-metrics { display: grid; grid-template-columns: repeat(10, minmax(68px, 1fr)); gap: 7px; }
 .live-metric { min-width: 0; padding: 7px 8px; border-left: 1px solid var(--border); }
 .live-metric strong { display: block; margin-top: 3px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .password-change-grid { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; }
@@ -792,3 +792,14 @@ body.auth-locked > .ui-toast-stack { pointer-events:none; user-select:none; filt
 .installer-source-box { margin-bottom:16px; padding:14px; border:1px solid rgba(112,167,255,.22); border-radius:12px; background:rgba(112,167,255,.035); }
 .installer-source-box code { color:#b9d4ff; }
 @media(max-width:680px){ .access-card{padding:18px}.access-copy h1{font-size:21px}.access-actions{grid-template-columns:1fr}.release-row{grid-template-columns:1fr} }
+
+/* v13.4 power telemetry */
+.power-tile strong { letter-spacing: -.02em; }
+.metric-tile.power-tile:has(strong.metric-bad) { border-color: rgba(248,113,113,.45); }
+.danger-box { border-color: rgba(248,113,113,.5) !important; background: rgba(248,113,113,.08) !important; }
+.emergency-log-card { border-color: rgba(248,113,113,.20); }
+#livePower.metric-bad { font-weight: 800; }
+
+.metric-tile strong.metric-warn { color: var(--yellow); }
+.metric-tile strong.metric-bad { color: var(--red); }
+.metric-tile strong.metric-ok { color: var(--green); }
