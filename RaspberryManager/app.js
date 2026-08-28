@@ -245,20 +245,33 @@ function updateDashboard(status) {
     $("dashDeviceName").textContent = `${status.hostname || "Raspberry"} · ${selectedDevice}`;
     const throttleInfo = status.throttled_info || explainThrottled(status.throttled);
     const powerInfo = status.power_info || {};
-    const inputV = status.input_voltage_v == null ? null : (Number.isFinite(Number(status.input_voltage_v)) ? Number(status.input_voltage_v) : null);
-    const coreV = status.core_voltage_v == null ? null : (Number.isFinite(Number(status.core_voltage_v)) ? Number(status.core_voltage_v) : null);
-    const coreA = status.core_current_a == null ? null : (Number.isFinite(Number(status.core_current_a)) ? Number(status.core_current_a) : null);
-    const inputA = status.input_current_a == null ? null : (Number.isFinite(Number(status.input_current_a)) ? Number(status.input_current_a) : null);
+    const voltageV = status.display_voltage_v == null
+        ? (status.core_voltage_v == null ? null : Number(status.core_voltage_v))
+        : Number(status.display_voltage_v);
+    const currentA = status.display_current_a == null ? null : Number(status.display_current_a);
+    const currentKind = status.display_current_kind || "unavailable";
     $("dashTempNote").textContent = throttleInfo.summary || "normal çalışma";
-    if ($("dashInputVoltage")) $("dashInputVoltage").textContent = inputV === null ? "N/A" : `${inputV.toFixed(2)} V`;
-    if ($("dashCoreVoltage")) $("dashCoreVoltage").textContent = coreV === null ? "N/A" : `${coreV.toFixed(3)} V`;
-    if ($("dashCoreCurrent")) $("dashCoreCurrent").textContent = coreA === null ? "N/A" : `${coreA.toFixed(2)} A`;
-    if ($("dashInputCurrent")) $("dashInputCurrent").textContent = inputA === null ? "N/A" : `${inputA.toFixed(2)} A`;
-    if ($("dashInputVoltageNote")) $("dashInputVoltageNote").textContent = powerInfo.title || "PMIC/ADC ölçümü";
-    if ($("dashInputCurrentNote")) $("dashInputCurrentNote").textContent = inputA === null ? "Toplam akım için harici sensör gerekir" : "5V giriş akımı";
-    if ($("dashInputVoltage")) {
-        $("dashInputVoltage").classList.remove("metric-ok","metric-warn","metric-bad");
-        $("dashInputVoltage").classList.add(powerInfo.level === "critical" ? "metric-bad" : ["warning","history"].includes(powerInfo.level) ? "metric-warn" : "metric-ok");
+
+    if ($("dashVoltage")) {
+        $("dashVoltage").textContent = Number.isFinite(voltageV) ? `${voltageV.toFixed(4)} V` : "N/A";
+        $("dashVoltage").classList.remove("metric-ok","metric-warn","metric-bad");
+        $("dashVoltage").classList.add(powerInfo.level === "critical" ? "metric-bad" : ["warning","history"].includes(powerInfo.level) ? "metric-warn" : "metric-ok");
+    }
+    if ($("dashVoltageNote")) {
+        $("dashVoltageNote").textContent = powerInfo.undervoltage_active
+            ? "⚠ Düşük voltaj bayrağı AKTİF"
+            : powerInfo.undervoltage_history
+                ? "Geçmiş düşük voltaj kaydı · measure_volts core"
+                : "vcgencmd measure_volts core";
+    }
+
+    if ($("dashCurrent")) $("dashCurrent").textContent = Number.isFinite(currentA) ? `${currentA.toFixed(3)} A` : "N/A";
+    if ($("dashCurrentNote")) {
+        $("dashCurrentNote").textContent = currentKind === "giriş"
+            ? "PMIC 5V giriş akımı"
+            : currentKind === "core"
+                ? "VDD_CORE gerçek PMIC akımı · toplam giriş değil"
+                : "Bu cihaz PMIC akım ölçümü vermiyor";
     }
     if ($("powerExplain")) {
         $("powerExplain").textContent = powerInfo.summary || "Güç telemetrisi okunamadı.";
@@ -288,7 +301,7 @@ function updateDashboard(status) {
         ["liveTemp", temp !== null && temp >= 80 ? "metric-bad" : temp !== null && temp >= 70 ? "metric-warn" : "metric-ok"],
         ["liveCpu", cpu >= 90 ? "metric-bad" : cpu >= 80 ? "metric-warn" : "metric-ok"],
         ["liveDisk", disk >= 95 ? "metric-bad" : disk >= 85 ? "metric-warn" : "metric-ok"],
-        ["livePower", powerCritical ? "metric-bad" : (powerWarning || powerInfo.level === "history") ? "metric-warn" : "metric-ok"],
+        ["liveVoltage", powerCritical ? "metric-bad" : (powerWarning || powerInfo.level === "history") ? "metric-warn" : "metric-ok"],
         ["liveCurrent", powerInfo.current_level === "critical" ? "metric-bad" : powerInfo.current_level === "warning" ? "metric-warn" : "metric-ok"],
         ["liveThrottle", throttleBad ? "metric-warn" : "metric-ok"],
     ];
@@ -309,7 +322,7 @@ async function refreshLiveStatus() {
     if (!selectedDevice) {
         resetLiveStatus();
         renderLiveAlarms([]);
-        renderEmergencyLog([]);
+
         return scheduleLiveStatus();
     }
 
@@ -335,16 +348,30 @@ async function refreshLiveStatus() {
         $("liveRam").textContent = `${Number(s.ram_percent).toFixed(1)}%`;
         $("liveDisk").textContent = `${Number(s.disk_percent).toFixed(1)}%`;
         const powerInfo = s.power_info || {};
-        const inputV = s.input_voltage_v == null ? null : (Number.isFinite(Number(s.input_voltage_v)) ? Number(s.input_voltage_v) : null);
-        const coreA = s.core_current_a == null ? null : (Number.isFinite(Number(s.core_current_a)) ? Number(s.core_current_a) : null);
-        const inputA = s.input_current_a == null ? null : (Number.isFinite(Number(s.input_current_a)) ? Number(s.input_current_a) : null);
-        if ($("livePower")) {
-            $("livePower").textContent = powerInfo.level === "critical" ? "⚠ DÜŞÜK VOLTAJ" : powerInfo.level === "history" ? "⚠ GEÇMİŞ UV" : inputV !== null ? `${inputV.toFixed(2)} V` : powerInfo.undervoltage_active ? "⚠ DÜŞÜK VOLTAJ" : "N/A";
-            $("livePower").title = powerInfo.summary || "";
+        const voltageV = s.display_voltage_v == null
+            ? (s.core_voltage_v == null ? null : Number(s.core_voltage_v))
+            : Number(s.display_voltage_v);
+        const currentA = s.display_current_a == null ? null : Number(s.display_current_a);
+        const currentKind = s.display_current_kind || "unavailable";
+
+        if ($("liveVoltage")) {
+            $("liveVoltage").textContent = powerInfo.undervoltage_active
+                ? "⚠ DÜŞÜK VOLTAJ"
+                : Number.isFinite(voltageV)
+                    ? `${voltageV.toFixed(4)} V`
+                    : "N/A";
+            $("liveVoltage").title = `${powerInfo.summary || ""}${Number.isFinite(voltageV) ? ` · measure_volts core=${voltageV.toFixed(4)} V` : ""}`;
         }
+
         if ($("liveCurrent")) {
-            $("liveCurrent").textContent = inputA !== null ? `${inputA.toFixed(2)} A giriş` : coreA !== null ? `${coreA.toFixed(2)} A core` : "N/A";
-            $("liveCurrent").title = inputA !== null ? "5V giriş akımı" : coreA !== null ? "VDD_CORE akımı; toplam Raspberry giriş akımı değildir." : "Toplam amper için harici sensör gerekir.";
+            $("liveCurrent").textContent = Number.isFinite(currentA)
+                ? `${currentA.toFixed(3)} A${currentKind === "core" ? " core" : currentKind === "giriş" ? " giriş" : ""}`
+                : "N/A";
+            $("liveCurrent").title = currentKind === "giriş"
+                ? "PMIC tarafından ölçülen 5V giriş akımı."
+                : currentKind === "core"
+                    ? "PMIC VDD_CORE akımı; toplam Raspberry giriş akımı değildir."
+                    : "Bu Raspberry modeli/firmware PMIC akım değerini sağlamıyor.";
         }
         $("liveThrottle").textContent = s.throttled || "-";
         const throttleInfo = s.throttled_info || explainThrottled(s.throttled);
@@ -353,13 +380,13 @@ async function refreshLiveStatus() {
         $("liveTurnstile").textContent = `${s.apache_active ? "Apache ✓" : "Apache ×"} · ${s.gc3_ready ? (s.gc3_running ? "gc3 geçişte" : "gc3 hazır") : "gc3 dosya yok"}`;
         updateDashboard(s);
         renderLiveAlarms(s.alarms || []);
-        renderEmergencyLog(s.emergency_log || []);
+
     } catch (err) {
         setLiveConnection("Bağlantı yok", false);
         $("liveNetwork").textContent = "--";
         $("liveTurnstile").textContent = "--";
         renderLiveAlarms([], err?.message || "SSH / canlı durum bağlantısı kurulamadı.");
-        renderEmergencyLog([]);
+
     } finally {
         liveStatusBusy = false;
         scheduleLiveStatus();
@@ -1328,8 +1355,14 @@ function renderLiveAlarms(alarms = [], connectionError = "") {
         items = [{ level:"critical", title:"Raspberry bağlantısı yok", detail:connectionError, time:"şimdi" }];
     }
     liveAlarmCache = items;
-    badge.className = `status ${items.length ? "running" : "success"}`;
-    badge.textContent = items.length ? `${items.length} açık uyarı · CANLI` : "0 uyarı · CANLI";
+    const activeCount = items.filter(x => !x.history).length;
+    const historyCount = items.filter(x => !!x.history).length;
+    badge.className = `status ${activeCount ? "running" : historyCount ? "neutral" : "success"}`;
+    badge.textContent = activeCount
+        ? `${activeCount} aktif${historyCount ? ` · ${historyCount} geçmiş` : ""}`
+        : historyCount
+            ? `0 aktif · ${historyCount} geçmiş`
+            : "0 uyarı · CANLI";
 
     if (!selectedDevice || !verifiedDevices[selectedDevice]?.is_raspberry) {
         badge.className = "status neutral";
@@ -1344,36 +1377,14 @@ function renderLiveAlarms(alarms = [], connectionError = "") {
     list.innerHTML = items.map(item => {
         const level = ["critical","warning","info"].includes(item.level) ? item.level : "info";
         const remedy = item.remedy ? `<button type="button" class="secondary alarm-fix-btn" data-alarm-remedy="${escapeHtml(item.remedy)}">${escapeHtml(item.remedy_label || "Sorunu Çöz")}</button>` : "";
-        return `<div class="alarm-item"><span class="alarm-dot ${level}"></span><div><strong>${escapeHtml(item.title || "Uyarı")}</strong><small>${escapeHtml(item.detail || "")}</small>${remedy}</div><time>${escapeHtml(item.time || "şimdi")}</time></div>`;
+        const historyBadge = item.history ? `<small class="alarm-history-label">GEÇMİŞ KAYIT</small>` : "";
+        return `<div class="alarm-item${item.history ? " alarm-history" : ""}"><span class="alarm-dot ${level}"></span><div><strong>${escapeHtml(item.title || "Uyarı")}</strong>${historyBadge}<small>${escapeHtml(item.detail || "")}</small>${remedy}</div><time>${escapeHtml(item.time || "şimdi")}</time></div>`;
     }).join("");
     list.querySelectorAll("[data-alarm-remedy]").forEach(btn=>btn.addEventListener("click", async()=>{
         try{const target=requireToolTarget(), action=btn.dataset.alarmRemedy; btn.disabled=true; const data=await api("/api/tools/turnstile-service",{method:"POST",body:JSON.stringify({...target,action})}); showToast(data.output||"Düzeltme uygulandı.","success","Alarm Çözümü"); setTimeout(()=>refreshLiveStatus(),800);}catch(err){showToast(err.message,"error","Alarm Çözümü");}finally{btn.disabled=false;}
     }));
 }
 
-
-function renderEmergencyLog(items = []) {
-    const list = $("emergencyLogList");
-    const badge = $("emergencyLogCount");
-    if (!list || !badge) return;
-    if (!selectedDevice || !verifiedDevices[selectedDevice]?.is_raspberry) {
-        badge.className = "status neutral";
-        badge.textContent = "Bekliyor";
-        list.innerHTML = `<div class="info-box muted">Raspberry doğrulandığında güç ve throttling acil durum geçmişi burada gösterilir.</div>`;
-        return;
-    }
-    const rows = Array.isArray(items) ? items : [];
-    badge.className = `status ${rows.some(x=>x.level === "critical") ? "error" : rows.length ? "running" : "success"}`;
-    badge.textContent = rows.length ? `${rows.length} kayıt` : "Kayıt yok";
-    if (!rows.length) {
-        list.innerHTML = `<div class="alarm-item live-ok"><span class="alarm-dot info"></span><div><strong>Acil güç kaydı yok</strong><small>${escapeHtml(selectedDevice)} için kaydedilmiş aktif güç olayı bulunmuyor.</small></div><time>canlı</time></div>`;
-        return;
-    }
-    list.innerHTML = rows.map(item => {
-        const level = item.level === "critical" ? "critical" : item.level === "warning" ? "warning" : "info";
-        return `<div class="alarm-item"><span class="alarm-dot ${level}"></span><div><strong>${escapeHtml(item.title || "Güç uyarısı")}</strong><small>${escapeHtml(item.detail || "")}</small></div><time>${escapeHtml(item.time || "")}</time></div>`;
-    }).join("");
-}
 
 function renderRealActivity(items = []) {
     if (window.GYMSOFT_DEMO_MODE) return;
@@ -1617,7 +1628,7 @@ function applyDemoLiveStatus() {
     const cpu = item.status === "warning" ? 55 + Math.random()*18 : 22 + Math.random() * 14;
     const throttled = item.status === "warning" ? "0x50005" : "0x0";
     const host = `GYM-TURNIKE-${item.ip.split('.').pop()}`;
-    const demoLow = item.status === "warning"; const status = { temperature:t, cpu_percent:cpu, ram_percent:46.2, disk_percent:31.8, throttled:`throttled=${throttled}`, throttled_info:explainThrottled(throttled), input_voltage_v:demoLow?4.55:5.08, core_voltage_v:0.82, core_current_a:0.74, input_current_a:null, power_info:{level:demoLow?"critical":"normal",title:demoLow?"DÜŞÜK VOLTAJ":"Güç normal",summary:demoLow?"5V besleme 4.55 V; düşük voltaj uyarısı aktif.":"5V besleme 5.08 V. VDD_CORE akımı 0.74 A (toplam giriş akımı değildir).",undervoltage_active:demoLow,current_level:"info"}, emergency_log:demoLow?[{level:"critical",title:"DÜŞÜK VOLTAJ",detail:"Demo: 5V besleme 4.55 V",time:"şimdi"}]:[], network_active:true, uptime_seconds:218400, apache_active:true, gc3_ready:true, gc3_running:false, gc3_active:true, hostname:host };
+    const demoLow = item.status === "warning"; const status = { temperature:t, cpu_percent:cpu, ram_percent:46.2, disk_percent:31.8, throttled:`throttled=${throttled}`, throttled_info:explainThrottled(throttled), input_voltage_v:demoLow?4.55:5.08, core_voltage_v:0.82, core_current_a:0.74, input_current_a:null, display_voltage_v:1.3750, display_current_a:0.74, display_current_kind:"core", power_info:{level:demoLow?"critical":"normal",title:demoLow?"DÜŞÜK VOLTAJ":"Güç normal",summary:demoLow?"5V besleme 4.55 V; düşük voltaj uyarısı aktif.":"5V besleme 5.08 V. VDD_CORE akımı 0.74 A (toplam giriş akımı değildir).",undervoltage_active:demoLow,current_level:"info"}, network_active:true, uptime_seconds:218400, apache_active:true, gc3_ready:true, gc3_running:false, gc3_active:true, hostname:host };
     setLiveConnection("Aktif · Demo", true);
     $("liveDevice").textContent = `${item.ip} · ${host}`;
     $("liveTemp").textContent = `${t.toFixed(1)} °C`;
@@ -1625,9 +1636,9 @@ function applyDemoLiveStatus() {
     $("liveRam").textContent = "46.2%";
     $("liveDisk").textContent = "31.8%";
     $("liveThrottle").textContent = throttled;
-    if ($("livePower")) $("livePower").textContent = status.power_info.level === "critical" ? "⚠ DÜŞÜK VOLTAJ" : `${status.input_voltage_v.toFixed(2)} V`;
+    if ($("liveVoltage")) $("liveVoltage").textContent = status.power_info.level === "critical" ? "⚠ DÜŞÜK VOLTAJ" : `${status.display_voltage_v.toFixed(4)} V`;
     if ($("liveCurrent")) $("liveCurrent").textContent = `${status.core_current_a.toFixed(2)} A core`;
-    renderEmergencyLog(status.emergency_log || []);
+
     $("liveNetwork").textContent = "Aktif · 60s 40dk";
     $("liveTurnstile").textContent = "Apache ✓ · gc3 hazır";
     updateDashboard(status);
@@ -1939,7 +1950,7 @@ function runV9DemoAction(id, btn) {
     if (["networkStaticBtn","networkDhcpBtn","networkDeleteBtn"].includes(id)) {
         delay(()=>{ demoOutput("networkOutput",`Deneyim Modu: ${actionLabel(btn)} simüle edildi. SSH bağlantısı etkilenmedi.`); setStatus($("networkState"),"Demo tamamlandı","success"); demoFinishButton(btn,"Ağ Ayarı",`${actionLabel(btn)} simüle edildi.`, id==="networkDeleteBtn"?"warning":"success"); },650); return true;
     }
-    if (id === "healthBtn") { delay(()=>{ demoOutput("healthOutput","Sıcaklık : 47.6 °C\nCPU      : %28\nRAM      : %46\nDisk     : %32\nVoltaj   : 1.20V\nThrottled: 0x0\n\n=== THROTTLED AÇIKLAMASI ===\nDurum     : NORMAL\nAçıklama  : Düşük voltaj, frekans kısıtlama, throttling veya soft sıcaklık limiti bayrağı yok.\n\nBit 0/0x1: Aktif düşük voltaj\nBit 2/0x4: Aktif throttling\nBit 16/0x10000: Geçmiş düşük voltaj\nBit 18/0x40000: Geçmiş throttling"); setStatus($("healthState"),"Sağlıklı","success"); demoFinishButton(btn,"Sağlık","Sağlık verileri alındı."); },520); return true; }
+    if (id === "healthBtn") { delay(()=>{ demoOutput("healthOutput","Sıcaklık : 47.6 °C\nCPU      : %28\nRAM      : %46\nDisk     : %32\nVoltaj   : volt=1.2000V\nAkım     : VDD_CORE_A current=0.740A\nThrottled: 0x0\n\n=== THROTTLED AÇIKLAMASI ===\nDurum     : NORMAL\nAçıklama  : Düşük voltaj, frekans kısıtlama, throttling veya soft sıcaklık limiti bayrağı yok.\n\nBit 0/0x1: Aktif düşük voltaj\nBit 2/0x4: Aktif throttling\nBit 16/0x10000: Geçmiş düşük voltaj\nBit 18/0x40000: Geçmiş throttling"); setStatus($("healthState"),"Sağlıklı","success"); demoFinishButton(btn,"Sağlık","Sağlık verileri alındı."); },520); return true; }
     if (id === "systemBtn") { delay(()=>{ demoOutput("systemOutput","Model    : Raspberry Pi 5 Model B Rev 1.0\nOS       : Raspberry Pi OS 64-bit\nKernel   : 6.6.x-rpi\nHostname : GYM-TURNIKE-01\nMimari   : aarch64\nUptime   : 2 gün 4 saat"); setStatus($("systemState"),"Okundu","success"); demoFinishButton(btn,"Sistem","Sistem bilgileri getirildi."); },520); return true; }
     if (["displayModesBtn","displayInfoBtn","displayLabwcBtn"].includes(id)) { delay(()=>{ if($("displayModeSelect")) $("displayModeSelect").innerHTML='<option value="1280x720">1280x720 (aktif)</option><option value="1920x1080">1920x1080</option>'; demoOutput("displayOutput","HDMI-A-1 connected\n1280x720 @ 60Hz\nTransform: normal\nlabwc autostart: aktif"); setStatus($("displayState"),"Okundu","success"); demoFinishButton(btn,"Ekran","Ekran bilgileri okundu."); },520); return true; }
     if (["displayApplyBtn","displayNormalBtn"].includes(id)) { delay(()=>{ demoOutput("displayOutput",`Deneyim Modu: ${$("displayModeSelect")?.value||"1280x720"} / ${$("displayDirection")?.value||"normal"} uygulandı.`); setStatus($("displayState"),"Uygulandı","success"); demoFinishButton(btn,"Ekran",`${actionLabel(btn)} tamamlandı.`); },620); return true; }
