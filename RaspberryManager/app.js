@@ -516,6 +516,34 @@ async function runPrecheck({silent=false}={}) {
 }
 $("precheckBtn")?.addEventListener('click',()=>runPrecheck());
 
+
+function renderInstallProgress(progress = 0, phase = "Bekliyor", state = "neutral") {
+    const value = Math.max(0, Math.min(100, Number(progress) || 0));
+    const bar = $("installProgressBar");
+    const track = $("installProgressTrack");
+    const percent = $("installProgressPercent");
+    const phaseEl = $("installProgressPhase");
+
+    if (bar) {
+        bar.style.width = `${value}%`;
+        bar.classList.remove("success", "error", "running");
+        if (state === "success") bar.classList.add("success");
+        else if (state === "error") bar.classList.add("error");
+        else if (value > 0 && value < 100) bar.classList.add("running");
+    }
+    if (track) {
+        track.setAttribute("aria-valuenow", String(Math.round(value)));
+        track.classList.toggle("is-error", state === "error");
+        track.classList.toggle("is-success", state === "success");
+    }
+    if (percent) percent.textContent = `${Math.round(value)}%`;
+    if (phaseEl) phaseEl.textContent = phase || "Kurulum devam ediyor…";
+}
+
+$("clearInstallLogBtn")?.addEventListener("click", () => {
+    if ($("logBox")) $("logBox").textContent = "Log temizlendi. Yeni kurulum çıktıları burada görünecek.";
+});
+
 $("installBtn").addEventListener("click", async () => {
     if (!selectedDevice) return alert("Önce kurulum yapılacak cihazı seçin.");
     if (!verifiedDevices[selectedDevice]?.is_raspberry) {
@@ -541,6 +569,7 @@ $("installBtn").addEventListener("click", async () => {
     btn.disabled = true;
     $("logBox").textContent = "Kurulum isteği hazırlanıyor…";
     setStatus($("jobState"), "Başlatılıyor", "running");
+    renderInstallProgress(1, "Kurulum isteği hazırlanıyor", "running");
 
     try {
         const data = await api("/api/install", {
@@ -561,38 +590,59 @@ $("installBtn").addEventListener("click", async () => {
     } catch (err) {
         $("logBox").textContent = `HATA: ${err.message}`;
         setStatus($("jobState"), "Hata", "error");
+        renderInstallProgress(0, "Kurulum başlatılamadı", "error");
         btn.disabled = false;
     }
 });
 
 function startPolling() {
     if (pollTimer) clearInterval(pollTimer);
+
     const poll = async () => {
         if (!currentJob) return;
+
         try {
             const data = await api(`/api/jobs/${currentJob}`);
             const job = data.job;
+            const progress = Number(job.progress || 0);
+            const phase = job.phase || "Kurulum devam ediyor";
+
             $("logBox").textContent = job.logs.join("\n") || "Kurulum bekleniyor…";
             $("logBox").scrollTop = $("logBox").scrollHeight;
 
             if (job.status === "success") {
-                setStatus($("jobState"), "Tamamlandı", "success");
+                renderInstallProgress(100, job.rebooting
+                    ? "Kurulum tamamlandı · Raspberry yeniden başlatılıyor"
+                    : (phase || "Kurulum tamamlandı"), "success");
+                setStatus($("jobState"), job.rebooting ? "Tamamlandı · Reboot" : "Tamamlandı", "success");
                 clearInterval(pollTimer);
                 $("installBtn").disabled = false;
+
+                showToast(
+                    job.rebooting
+                        ? "Kurulum tamamlandı. Raspberry yeniden başlatılıyor; SSH bağlantısının kopması normal."
+                        : "Kurulum başarıyla tamamlandı.",
+                    "success",
+                    "Kurulum"
+                );
             } else if (job.status === "error") {
+                renderInstallProgress(progress, phase || "Kurulum hatası", "error");
                 setStatus($("jobState"), "Hata", "error");
                 clearInterval(pollTimer);
                 $("installBtn").disabled = false;
             } else {
+                renderInstallProgress(progress, phase, "running");
                 setStatus($("jobState"), "Çalışıyor", "running");
             }
         } catch (err) {
             $("logBox").textContent += `\nPanel bağlantı hatası: ${err.message}`;
         }
     };
+
     poll();
-    pollTimer = setInterval(poll, 1500);
+    pollTimer = setInterval(poll, 1200);
 }
+
 
 function requireTurnstileTarget() {
     if (!selectedDevice) throw new Error("Önce ağ listesinden bir Raspberry Pi seçin.");

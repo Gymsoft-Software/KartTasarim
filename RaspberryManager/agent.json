@@ -1,5 +1,5 @@
 {
-  "version": "v13.5",
+  "version": "v13.6",
   "download_url": "https://gymsoft-software.github.io/KartTasarim/RaspberryManager/downloads/GymsoftAgent.exe",
   "notes": "v13.4: 5V besleme/core güç telemetrisi, düşük voltaj üst widget uyarısı ve cihaz bazlı Acil Durum Logu."
 }

@@ -93,7 +93,7 @@
                 <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
                 <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
                 <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
-                <span class="badge">v13.5 Power Monitor</span>
+                <span class="badge">v13.6 Power Monitor</span>
             </div>
         </header>
 
@@ -275,6 +275,45 @@
                 </div>
 
                 <button type="button" id="installBtn" class="primary danger-safe">Kurulumu Başlat</button>
+
+                <div class="install-runtime-card" id="installRuntime">
+                    <div class="install-runtime-head">
+                        <div>
+                            <h3>Kurulum İlerlemesi</h3>
+                            <p id="installProgressPhase">Kurulum başlatılmadı.</p>
+                        </div>
+                        <div class="install-progress-status">
+                            <strong id="installProgressPercent">0%</strong>
+                            <span id="jobState" class="status neutral">Bekliyor</span>
+                        </div>
+                    </div>
+
+                    <div class="install-progress-track" id="installProgressTrack" role="progressbar"
+                         aria-label="Kurulum ilerlemesi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <div class="install-progress-bar" id="installProgressBar"></div>
+                    </div>
+
+                    <div class="install-progress-steps" aria-hidden="true">
+                        <span>Bağlantı</span>
+                        <span>Yedek</span>
+                        <span>Dosyalar</span>
+                        <span>Kurulum</span>
+                        <span>Yapılandırma</span>
+                        <span>Tamamlandı</span>
+                    </div>
+
+                    <div class="install-log-inline">
+                        <div class="install-log-title">
+                            <div>
+                                <h3>Kurulum Logu</h3>
+                                <p>Uzaktaki Raspberry Pi üzerinde çalışan kurulum script çıktısı.</p>
+                            </div>
+                            <button type="button" id="clearInstallLogBtn" class="ghost compact">Logu Temizle</button>
+                        </div>
+                        <pre id="logBox" class="install-log-box">Kurulum başlatıldığında loglar burada görüntülenecek.</pre>
+                    </div>
+                </div>
+
                 <p class="secret-note">Parola ve token tarayıcı depolamasına kaydedilmez.</p>
             </div>
         </section>
@@ -668,17 +707,6 @@
                 <button type="button" id="supportPackageBtn" class="primary">Teknik Destek Paketi Oluştur</button>
             </div>
             <pre id="maintenanceOutput" class="tool-output">Log seçip “Logu Getir” butonuna basın.</pre>
-        </section>
-
-        <section class="panel app-page-section" id="logs" data-page="diagnostics">
-            <div class="section-title">
-                <div>
-                    <h2>Kurulum Logu</h2>
-                    <p>Uzaktaki Raspberry Pi üzerinde çalışan kurulum script çıktısı.</p>
-                </div>
-                <span id="jobState" class="status neutral">Bekliyor</span>
-            </div>
-            <pre id="logBox">Kurulum başlatıldığında loglar burada görüntülenecek.</pre>
         </section>
     <button type="button" id="quickGc3Btn" class="hidden" aria-hidden="true">gc3 Durum</button>
     </main>

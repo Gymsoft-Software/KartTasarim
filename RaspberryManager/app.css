@@ -803,3 +803,124 @@ body.auth-locked > .ui-toast-stack { pointer-events:none; user-select:none; filt
 .metric-tile strong.metric-warn { color: var(--yellow); }
 .metric-tile strong.metric-bad { color: var(--red); }
 .metric-tile strong.metric-ok { color: var(--green); }
+
+
+/* ==========================================================================
+   v13.6 — Installation progress + inline installation log
+   ========================================================================== */
+.install-runtime-card {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid rgba(112,167,255,.22);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(112,167,255,.035), rgba(255,255,255,.012));
+}
+.install-runtime-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+.install-runtime-head h3,
+.install-log-title h3 {
+    margin: 0;
+    font-size: 14px;
+}
+.install-runtime-head p,
+.install-log-title p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+}
+.install-progress-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+#installProgressPercent {
+    min-width: 48px;
+    text-align: right;
+    font-size: 18px;
+    color: var(--yellow);
+    font-variant-numeric: tabular-nums;
+}
+.install-progress-track {
+    position: relative;
+    width: 100%;
+    height: 14px;
+    overflow: hidden;
+    border-radius: 999px;
+    border: 1px solid #343b45;
+    background: #090b0e;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,.45);
+}
+.install-progress-bar {
+    width: 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #e2af10, #f2c318);
+    transition: width .4s ease;
+}
+.install-progress-bar.running {
+    background-size: 30px 30px;
+    background-image: linear-gradient(
+        135deg,
+        rgba(255,255,255,.18) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255,255,255,.18) 50%,
+        rgba(255,255,255,.18) 75%,
+        transparent 75%,
+        transparent
+    ), linear-gradient(90deg, #d6a80d, #f2c318);
+    animation: installProgressStripe 1s linear infinite;
+}
+.install-progress-bar.success { background: linear-gradient(90deg, #299b58, #4cd37d); }
+.install-progress-bar.error { background: linear-gradient(90deg, #a43838, #ef6767); }
+.install-progress-track.is-error { border-color: rgba(239,103,103,.55); }
+.install-progress-track.is-success { border-color: rgba(76,211,125,.5); }
+@keyframes installProgressStripe {
+    from { background-position: 0 0, 0 0; }
+    to { background-position: 30px 0, 0 0; }
+}
+.install-progress-steps {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 9px;
+    text-align: center;
+}
+.install-log-inline {
+    margin-top: 18px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border);
+}
+.install-log-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.install-log-box {
+    min-height: 260px;
+    max-height: 520px;
+}
+@media(max-width:680px) {
+    .install-runtime-head,
+    .install-log-title {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .install-progress-status {
+        justify-content: space-between;
+    }
+    .install-progress-steps {
+        grid-template-columns: repeat(3,1fr);
+        row-gap: 4px;
+    }
+}
