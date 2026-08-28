@@ -1,5 +1,5 @@
 {
-  "version": "v13-secure-installer",
+  "version": "v13.3",
   "download_url": "https://gymsoft-software.github.io/KartTasarim/RaspberryManager/downloads/GymsoftAgent.exe",
   "notes": "v13: zorunlu Local Agent login, EXE indirme popup ve private GitHub Pi script seçimi."
 }

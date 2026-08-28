@@ -3,10 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gymsoft Raspberry Manager v13</title>
+    <title>Gymsoft Raspberry Manager v13.2</title>
     <link rel="stylesheet" href="./app.css">
 </head>
-<body class="auth-locked">
+<body>
 <div class="access-gate hidden" id="agentDownloadGate" role="dialog" aria-modal="true" aria-labelledby="agentDownloadTitle">
     <div class="access-card agent-download-card">
         <div class="access-icon">G</div>
@@ -23,27 +23,9 @@
     </div>
 </div>
 
-<div class="access-gate hidden" id="authGate" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
-    <div class="access-card login-card">
-        <div class="access-icon">G</div>
-        <div class="access-copy">
-            <span class="access-eyebrow">GÜVENLİ GİRİŞ</span>
-            <h1 id="authGateTitle">Raspberry Manager'a Giriş</h1>
-            <p id="authGateText">Devam etmek için yönetici hesabınızla giriş yapın.</p>
-        </div>
-        <form id="authForm" class="access-form" autocomplete="off">
-            <label><span>Kullanıcı Adı</span><input id="authUsername" type="text" autocomplete="username" required maxlength="64"></label>
-            <label><span>Parola</span><input id="authPassword" type="password" autocomplete="current-password" required minlength="10"></label>
-            <label id="authPasswordRepeatRow" class="hidden"><span>Parola Tekrar</span><input id="authPasswordRepeat" type="password" autocomplete="new-password" minlength="10"></label>
-            <div class="access-error hidden" id="authError"></div>
-            <button type="submit" class="primary full-button" id="authSubmitBtn">Giriş Yap</button>
-        </form>
-        <div class="access-security">Parola tarayıcıya veya GitHub Pages'e kaydedilmez. Agent yalnızca salt + PBKDF2-SHA256 parola özeti saklar.</div>
-    </div>
-</div>
 <div class="github-agent-banner" id="agentBanner">
   <div><strong>GymsoftAgent.exe</strong><span id="agentState">Local Agent bağlantısı kontrol ediliyor…</span></div>
-  <div class="agent-banner-actions"><button type="button" class="secondary compact" id="agentCheckBtn">Tekrar Dene</button><button type="button" class="ghost compact hidden" id="authLogoutBtn">Oturumu Kapat</button></div>
+  <div class="agent-banner-actions"><button type="button" class="secondary compact" id="agentCheckBtn">Tekrar Dene</button></div>
 </div>
 
 <div class="shell">
@@ -67,7 +49,7 @@
             <a href="#settings" data-page-link="settings"><span>⚙</span><div><strong>Ayarlar</strong><small>Güvenlik & agent</small></div></a>
         </nav>
         <div class="sidebar-note">
-            <strong>GYMSOFT Manager v13</strong>
+            <strong>GYMSOFT Manager v13.2</strong>
             <span id="sidebarModeText">Gerçek cihaz modu</span>
             <span class="sidebar-agent" id="sidebarAgentText">Agent bekleniyor</span>
         </div>
@@ -422,6 +404,7 @@
                     <span id="healthState" class="status neutral">Hazır</span>
                 </div>
                 <button type="button" id="healthBtn" class="primary">Sağlık Bilgilerini Getir</button>
+                <div id="throttledExplain" class="info-box muted"><strong>Throttled Açıklaması:</strong> Canlı Raspberry durumu alındığında 0x değerinin anlamı burada açıklanır.</div>
                 <pre id="healthOutput" class="tool-output">Henüz sağlık bilgisi alınmadı.</pre>
             </div>
 

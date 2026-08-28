@@ -19,20 +19,13 @@ function apiUrl(url) {
     if (/^https?:\/\//i.test(url)) return url;
     return `${API_BASE}${url.startsWith("/") ? url : `/${url}`}`;
 }
-const AUTH_TOKEN_KEY = "gymsoft.manager.auth.token";
-function getAuthToken(){ return sessionStorage.getItem(AUTH_TOKEN_KEY) || ""; }
-function setAuthToken(token){ if(token) sessionStorage.setItem(AUTH_TOKEN_KEY, token); else sessionStorage.removeItem(AUTH_TOKEN_KEY); }
 async function api(url, options = {}) {
     const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-    const token = getAuthToken();
-    if (token && !/^https?:\/\//i.test(url)) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(apiUrl(url), { ...options, headers });
     const contentType = response.headers.get("content-type") || "";
-    const data = contentType.includes("application/json") ? await response.json() : { ok: response.ok, error: await response.text() };
-    if (response.status === 401 && data?.auth_required) {
-        setAuthToken("");
-        if (typeof showAuthGate === "function") showAuthGate({setup:false, message:"Oturum süresi doldu. Tekrar giriş yapın."});
-    }
+    const data = contentType.includes("application/json")
+        ? await response.json()
+        : { ok: response.ok, error: await response.text() };
     if (!response.ok || data.ok === false) throw new Error(data.error || `HTTP ${response.status}`);
     return data;
 }
@@ -199,6 +192,37 @@ function drawSparkline(canvasId, values, { min = null, max = null } = {}) {
     ctx.stroke();
 }
 
+
+function explainThrottled(raw) {
+    const text = String(raw ?? "").trim().toLowerCase().replace("throttled=", "");
+    if (!text || text === "-") return { raw: raw || "-", current_active:false, historical:false, summary:"Throttled bilgisi okunamadı.", current:[], history:[] };
+    let value;
+    try { value = Number.parseInt(text.startsWith("0x") ? text.slice(2) : text, 16); }
+    catch { return { raw:text, current_active:false, historical:false, summary:`Throttled değeri çözümlenemedi: ${text}`, current:[], history:[] }; }
+    if (!Number.isFinite(value)) return { raw:text, current_active:false, historical:false, summary:`Throttled değeri çözümlenemedi: ${text}`, current:[], history:[] };
+
+    const currentDefs = [
+        [0,"Düşük voltaj şu anda algılanıyor"],
+        [1,"ARM frekansı şu anda sınırlandırılmış"],
+        [2,"Sistem şu anda throttling uyguluyor"],
+        [3,"Soft sıcaklık limiti şu anda aktif"],
+    ];
+    const historyDefs = [
+        [16,"Geçmişte düşük voltaj yaşandı"],
+        [17,"Geçmişte ARM frekansı sınırlandırıldı"],
+        [18,"Geçmişte throttling yaşandı"],
+        [19,"Geçmişte soft sıcaklık limiti aktif oldu"],
+    ];
+    const current = currentDefs.filter(([bit]) => value & (1 << bit)).map(([,label])=>label);
+    const history = historyDefs.filter(([bit]) => value & (1 << bit)).map(([,label])=>label);
+    let summary;
+    if (value === 0) summary = "Normal: güç/ısı kaynaklı throttling bayrağı yok.";
+    else if (current.length) summary = `AKTİF UYARI: ${current.join("; ")}${history.length ? ` · Geçmiş: ${history.join("; ")}` : ""}`;
+    else if (history.length) summary = `Şu anda aktif sorun yok. Geçmiş kayıt: ${history.join("; ")}`;
+    else summary = `Throttled 0x${value.toString(16)}: standart bayrak açıklaması bulunamadı.`;
+    return { raw:`0x${value.toString(16)}`, current_active:!!current.length, historical:!!history.length, summary, current, history };
+}
+
 function updateDashboard(status) {
     const temp = status.temperature === null ? null : Number(status.temperature);
     const cpu = Number(status.cpu_percent);
@@ -213,9 +237,14 @@ function updateDashboard(status) {
     if ($("dashHealthScore")) $("dashHealthScore").textContent = `${Number(status.health_score ?? 0).toFixed(0)}/100`;
     if ($("dashHealthReasons")) $("dashHealthReasons").textContent = (status.health_reasons || []).slice(0,2).join(" · ") || "Sorun tespit edilmedi";
     $("dashDeviceName").textContent = `${status.hostname || "Raspberry"} · ${selectedDevice}`;
-    $("dashTempNote").textContent = status.throttled && status.throttled !== "throttled=0x0" && status.throttled !== "0x0" ? status.throttled : "normal çalışma";
+    const throttleInfo = status.throttled_info || explainThrottled(status.throttled);
+    $("dashTempNote").textContent = throttleInfo.summary || "normal çalışma";
+    if ($("throttledExplain")) {
+        $("throttledExplain").textContent = `${status.throttled || "-"} · ${throttleInfo.summary || ""}`;
+        $("throttledExplain").className = `info-box ${throttleInfo.current_active ? "warning-box" : throttleInfo.historical ? "" : "muted"}`;
+    }
 
-    const throttleBad = status.throttled && !String(status.throttled).endsWith("0x0");
+    const throttleBad = !!throttleInfo.current_active;
     const bad = !status.apache_active || !status.network_active || (temp !== null && temp >= 80);
     const warn = throttleBad || !status.gc3_ready || (temp !== null && temp >= 70) || cpu >= 85 || disk >= 90;
     const badge = $("dashHealthBadge");
@@ -276,6 +305,8 @@ async function refreshLiveStatus() {
         $("liveRam").textContent = `${Number(s.ram_percent).toFixed(1)}%`;
         $("liveDisk").textContent = `${Number(s.disk_percent).toFixed(1)}%`;
         $("liveThrottle").textContent = s.throttled || "-";
+        const throttleInfo = s.throttled_info || explainThrottled(s.throttled);
+        $("liveThrottle").title = throttleInfo.summary || "";
         $("liveNetwork").textContent = s.network_active ? `Aktif · ${formatUptime(s.uptime_seconds)}` : "Route yok";
         $("liveTurnstile").textContent = `${s.apache_active ? "Apache ✓" : "Apache ×"} · ${s.gc3_ready ? (s.gc3_running ? "gc3 geçişte" : "gc3 hazır") : "gc3 dosya yok"}`;
         updateDashboard(s);
@@ -641,7 +672,7 @@ $("changePasswordBtn").addEventListener("click", async () => {
         $("newSshPassword").value = "";
         $("newSshPasswordConfirm").value = "";
         $("passwordResult").classList.remove("muted");
-        $("passwordResult").textContent = `${data.message} Paneldeki SSH parola alanı yeni parola ile güncellendi.`;
+        $("passwordResult").textContent = `${data.message} Paneldeki SSH parola alanı da yeni parola ile güncellendi.`;
         setStatus($("passwordState"), "Değiştirildi", "success");
         scheduleLiveStatus(250);
     } catch (err) {
@@ -1518,7 +1549,7 @@ function applyDemoLiveStatus() {
     const cpu = item.status === "warning" ? 55 + Math.random()*18 : 22 + Math.random() * 14;
     const throttled = item.status === "warning" ? "0x50005" : "0x0";
     const host = `GYM-TURNIKE-${item.ip.split('.').pop()}`;
-    const status = { temperature:t, cpu_percent:cpu, ram_percent:46.2, disk_percent:31.8, throttled:`throttled=${throttled}`, network_active:true, uptime_seconds:218400, apache_active:true, gc3_ready:true, gc3_running:false, gc3_active:true, hostname:host };
+    const status = { temperature:t, cpu_percent:cpu, ram_percent:46.2, disk_percent:31.8, throttled:`throttled=${throttled}`, throttled_info:explainThrottled(throttled), network_active:true, uptime_seconds:218400, apache_active:true, gc3_ready:true, gc3_running:false, gc3_active:true, hostname:host };
     setLiveConnection("Aktif · Demo", true);
     $("liveDevice").textContent = `${item.ip} · ${host}`;
     $("liveTemp").textContent = `${t.toFixed(1)} °C`;
@@ -1837,7 +1868,7 @@ function runV9DemoAction(id, btn) {
     if (["networkStaticBtn","networkDhcpBtn","networkDeleteBtn"].includes(id)) {
         delay(()=>{ demoOutput("networkOutput",`Deneyim Modu: ${actionLabel(btn)} simüle edildi. SSH bağlantısı etkilenmedi.`); setStatus($("networkState"),"Demo tamamlandı","success"); demoFinishButton(btn,"Ağ Ayarı",`${actionLabel(btn)} simüle edildi.`, id==="networkDeleteBtn"?"warning":"success"); },650); return true;
     }
-    if (id === "healthBtn") { delay(()=>{ demoOutput("healthOutput","Sıcaklık : 47.6 °C\nCPU      : %28\nRAM      : %46\nDisk     : %32\nVoltaj   : 1.20V\nThrottled: 0x0\nDurum    : NORMAL"); setStatus($("healthState"),"Sağlıklı","success"); demoFinishButton(btn,"Sağlık","Sağlık verileri alındı."); },520); return true; }
+    if (id === "healthBtn") { delay(()=>{ demoOutput("healthOutput","Sıcaklık : 47.6 °C\nCPU      : %28\nRAM      : %46\nDisk     : %32\nVoltaj   : 1.20V\nThrottled: 0x0\n\n=== THROTTLED AÇIKLAMASI ===\nDurum     : NORMAL\nAçıklama  : Düşük voltaj, frekans kısıtlama, throttling veya soft sıcaklık limiti bayrağı yok.\n\nBit 0/0x1: Aktif düşük voltaj\nBit 2/0x4: Aktif throttling\nBit 16/0x10000: Geçmiş düşük voltaj\nBit 18/0x40000: Geçmiş throttling"); setStatus($("healthState"),"Sağlıklı","success"); demoFinishButton(btn,"Sağlık","Sağlık verileri alındı."); },520); return true; }
     if (id === "systemBtn") { delay(()=>{ demoOutput("systemOutput","Model    : Raspberry Pi 5 Model B Rev 1.0\nOS       : Raspberry Pi OS 64-bit\nKernel   : 6.6.x-rpi\nHostname : GYM-TURNIKE-01\nMimari   : aarch64\nUptime   : 2 gün 4 saat"); setStatus($("systemState"),"Okundu","success"); demoFinishButton(btn,"Sistem","Sistem bilgileri getirildi."); },520); return true; }
     if (["displayModesBtn","displayInfoBtn","displayLabwcBtn"].includes(id)) { delay(()=>{ if($("displayModeSelect")) $("displayModeSelect").innerHTML='<option value="1280x720">1280x720 (aktif)</option><option value="1920x1080">1920x1080</option>'; demoOutput("displayOutput","HDMI-A-1 connected\n1280x720 @ 60Hz\nTransform: normal\nlabwc autostart: aktif"); setStatus($("displayState"),"Okundu","success"); demoFinishButton(btn,"Ekran","Ekran bilgileri okundu."); },520); return true; }
     if (["displayApplyBtn","displayNormalBtn"].includes(id)) { delay(()=>{ demoOutput("displayOutput",`Deneyim Modu: ${$("displayModeSelect")?.value||"1280x720"} / ${$("displayDirection")?.value||"normal"} uygulandı.`); setStatus($("displayState"),"Uygulandı","success"); demoFinishButton(btn,"Ekran",`${actionLabel(btn)} tamamlandı.`); },620); return true; }
@@ -1988,89 +2019,69 @@ $("githubToken")?.addEventListener("input",()=>{
 });
 
 
-/* ========================================================================== 
-   Gymsoft Raspberry Manager v13 — Login gate + Agent download bootstrap
+/* ==========================================================================
+   Gymsoft Raspberry Manager v13.2 — Agent-only bootstrap
+   Manager kullanıcı adı / parola girişi kaldırıldı.
    ========================================================================== */
-let __authSetupMode=false;
-let __authBootBusy=false;
-function lockApplication(){ document.body.classList.add("auth-locked"); }
-function unlockApplication(){
-    document.body.classList.remove("auth-locked");
-    $("authGate")?.classList.add("hidden");
-    $("agentDownloadGate")?.classList.add("hidden");
-    $("authLogoutBtn")?.classList.remove("hidden");
-}
+let __agentBootBusy = false;
+
 function showAgentDownloadGate(){
-    lockApplication();
-    $("authGate")?.classList.add("hidden");
-    const gate=$("agentDownloadGate"); gate?.classList.remove("hidden");
-    const link=$("agentDownloadBtn"); if(link) link.href=String(window.GYMSOFT_AGENT_DOWNLOAD_URL||"./downloads/GymsoftAgent.exe");
-    $("authLogoutBtn")?.classList.add("hidden");
+    document.body.classList.add("auth-locked");
+    $("agentDownloadGate")?.classList.remove("hidden");
+    const link = $("agentDownloadBtn");
+    if (link) link.href = String(window.GYMSOFT_AGENT_DOWNLOAD_URL || "./downloads/GymsoftAgent.exe");
 }
-function showAuthGate({setup=false,message=""}={}){
-    lockApplication(); __authSetupMode=!!setup;
+
+function hideAgentDownloadGate(){
+    document.body.classList.remove("auth-locked");
     $("agentDownloadGate")?.classList.add("hidden");
-    $("authGate")?.classList.remove("hidden");
-    $("authPasswordRepeatRow")?.classList.toggle("hidden",!setup);
-    $("authGateTitle").textContent=setup?"İlk Yönetici Hesabını Oluştur":"Raspberry Manager'a Giriş";
-    $("authGateText").textContent=message||(setup?"Bu bilgisayardaki Local Agent için ilk yönetici hesabını oluşturun. Parola geri okunabilir biçimde saklanmaz.":"Devam etmek için yönetici hesabınızla giriş yapın.");
-    $("authSubmitBtn").textContent=setup?"Hesabı Oluştur ve Giriş Yap":"Giriş Yap";
-    $("authPassword").autocomplete=setup?"new-password":"current-password";
-    $("authError")?.classList.add("hidden");
-    $("authLogoutBtn")?.classList.add("hidden");
-    setTimeout(()=>$("authUsername")?.focus(),60);
 }
-function authError(text){ const box=$("authError"); if(!box)return; box.textContent=text; box.classList.remove("hidden"); }
-async function bootstrapAuth(){
-    try{
-        const status=await api("/api/auth/status",{method:"GET"});
-        if(status.authenticated){ unlockApplication(); return true; }
-        if(!status.configured){ showAuthGate({setup:true}); return false; }
-        showAuthGate({setup:false}); return false;
-    }catch(err){ showAuthGate({setup:false,message:err.message}); return false; }
-}
-$("authForm")?.addEventListener("submit",async e=>{
-    e.preventDefault();
-    const username=$("authUsername").value.trim(), password=$("authPassword").value, repeat=$("authPasswordRepeat").value;
-    if(__authSetupMode && password!==repeat){ authError("Parolalar eşleşmiyor."); return; }
-    const btn=$("authSubmitBtn"); btn.disabled=true; $("authError")?.classList.add("hidden");
-    try{
-        const endpoint=__authSetupMode?"/api/auth/setup":"/api/auth/login";
-        const data=await api(endpoint,{method:"POST",body:JSON.stringify({username,password})});
-        setAuthToken(data.token||"");
-        $("authPassword").value=""; $("authPasswordRepeat").value="";
-        unlockApplication();
-        showToast(`Oturum açıldı · ${data.username||username}`,"success","Güvenli Giriş");
-        checkGitHubPagesAgent();
-    }catch(err){ authError(err.message); }
-    finally{ btn.disabled=false; }
-});
-$("authLogoutBtn")?.addEventListener("click",async()=>{
-    try{ await api("/api/auth/logout",{method:"POST",body:"{}"}); }catch(_e){}
-    setAuthToken(""); showAuthGate({setup:false,message:"Oturum kapatıldı. Tekrar giriş yapın."});
-});
+
 $("agentGateRetryBtn")?.addEventListener("click",()=>checkGitHubPagesAgent());
 
 async function checkGitHubPagesAgent(){
-    if(__authBootBusy)return; __authBootBusy=true;
-    const state=$("agentState");
-    if(state){state.textContent=`Kontrol ediliyor · ${API_BASE}`;state.className="agent-checking";}
-    try{
-        const data=await api("/api/agent-status",{method:"GET"});
-        window.GYMSOFT_AGENT_ONLINE=true;document.body.classList.remove("agent-offline-mode");
-        if(state){state.textContent=`Bağlı · ${data.name||"Gymsoft Local Agent"} · ${data.version||"v13"}`;state.className="agent-online";}
-        if(data.default_cidr && $("cidr")?.value==="192.168.1.0/24") $("cidr").value=data.default_cidr;
-        refreshAgentBadge(); setActionDock("Local Agent bağlı · giriş kontrol ediliyor","success");
-        await bootstrapAuth();
-    }catch(err){
-        window.GYMSOFT_AGENT_ONLINE=false;document.body.classList.add("agent-offline-mode");setAuthToken("");
-        if(state){state.textContent=`Bağlanamadı · GymsoftAgent.exe çalışmıyor (${API_BASE})`;state.className="agent-offline";}
-        setActionDock("Local Agent gerekli","error"); showAgentDownloadGate();
-    }finally{__authBootBusy=false;}
+    if (__agentBootBusy) return;
+    __agentBootBusy = true;
+
+    const state = $("agentState");
+    if (state) {
+        state.textContent = `Kontrol ediliyor · ${API_BASE}`;
+        state.className = "agent-checking";
+    }
+
+    try {
+        const data = await api("/api/agent-status", {method:"GET"});
+        window.GYMSOFT_AGENT_ONLINE = true;
+        document.body.classList.remove("agent-offline-mode");
+        hideAgentDownloadGate();
+
+        if (state) {
+            state.textContent = `Bağlı · ${data.name || "Gymsoft Local Agent"} · ${data.version || "v13.2"}`;
+            state.className = "agent-online";
+        }
+
+        if (data.default_cidr && $("cidr")?.value === "192.168.1.0/24") {
+            $("cidr").value = data.default_cidr;
+        }
+
+        refreshAgentBadge();
+        setActionDock("Local Agent bağlı · panel kullanıma hazır", "success");
+    } catch (err) {
+        window.GYMSOFT_AGENT_ONLINE = false;
+        document.body.classList.add("agent-offline-mode");
+
+        if (state) {
+            state.textContent = `Bağlanamadı · GymsoftAgent.exe çalışmıyor (${API_BASE})`;
+            state.className = "agent-offline";
+        }
+
+        setActionDock("Local Agent gerekli", "error");
+        showAgentDownloadGate();
+    } finally {
+        __agentBootBusy = false;
+    }
 }
 
-// Existing banner retry now uses the secure bootstrap.
 $("agentCheckBtn")?.addEventListener("click",()=>checkGitHubPagesAgent());
-// Start from a locked page every time; sessionStorage token can unlock only after Agent validation.
-lockApplication();
 setTimeout(()=>checkGitHubPagesAgent(),30);
+
