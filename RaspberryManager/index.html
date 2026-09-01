@@ -49,7 +49,7 @@
             <a href="#settings" data-page-link="settings"><span>⚙</span><div><strong>Ayarlar</strong><small>Güvenlik & agent</small></div></a>
         </nav>
         <div class="sidebar-note">
-            <strong>GYMSOFT Manager v13.2</strong>
+            <strong>GYMSOFT Manager v13.7</strong>
             <span id="sidebarModeText">Gerçek cihaz modu</span>
             <span class="sidebar-agent" id="sidebarAgentText">Agent bekleniyor</span>
         </div>
@@ -93,7 +93,7 @@
                 <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
                 <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
                 <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
-                <span class="badge">v13.6 Power Monitor</span>
+                <span class="badge">v13.7 Power Monitor</span>
             </div>
         </header>
 
@@ -204,7 +204,10 @@
                         <input id="sshPassword" type="password" autocomplete="current-password">
                     </label>
                 </div>
-                <button type="button" id="verifyBtn" class="secondary">Raspberry Pi'yi Doğrula</button>
+                <div class="ssh-action-row">
+                    <button type="button" id="verifyBtn" class="secondary">Raspberry Pi'yi Doğrula</button>
+                    <button type="button" id="openSshCmdBtn" class="primary">SSH CMD Aç</button>
+                </div>
                 <div id="deviceInfo" class="info-box muted">Cihaz bilgisi henüz alınmadı.</div>
             </div>
 
@@ -686,13 +689,38 @@
         <section class="panel app-page-section" id="diagnoseTools" data-page="diagnostics">
             <div class="section-title">
                 <div>
-                    <h2>Hızlı Arıza Tespiti</h2>
-                    <p>Cihaz, sağlık, ağ, Apache, kiosk, gc3.py ve ekran bilgilerini tek raporda toplar.</p>
+                    <h2>Hızlı Arıza Tespiti · Türkçe Yorumlu</h2>
+                    <p>Ham teknik değerlerin yanında “arıza var / olabilir / geçmişte olmuş / normal” şeklinde Türkçe anlam ve öneri verir.</p>
                 </div>
                 <span id="diagnoseState" class="status neutral">Hazır</span>
             </div>
-            <button type="button" id="diagnoseBtn" class="primary">Hızlı Arıza Tespiti Çalıştır</button>
+            <button type="button" id="diagnoseBtn" class="primary">Türkçe Hızlı Arıza Tespiti Çalıştır</button>
             <pre id="diagnoseOutput" class="tool-output diagnose-output">Henüz tanılama çalıştırılmadı.</pre>
+        </section>
+
+        
+        <section class="panel app-page-section" id="powerHistoryPanel" data-page="diagnostics">
+            <div class="section-title">
+                <div>
+                    <h2>Turnike Açılış / Kapanış Geçmişi</h2>
+                    <p>Açılış, kontrollü kapanış/reboot, beklenmeyen kapanma ve güç/throttling olaylarını gösterir.</p>
+                </div>
+                <span id="powerHistoryState" class="status neutral">Hazır</span>
+            </div>
+            <div class="tool-button-row">
+                <button type="button" id="powerHistoryRefreshBtn" class="primary">Geçmişi Yenile</button>
+                <button type="button" id="powerHistoryInstallBtn" class="secondary">İzlemeyi Etkinleştir</button>
+            </div>
+            <div id="powerHistoryInfo" class="info-box muted">
+                Eski cihazlarda ayrıntılı neden geçmişi için “İzlemeyi Etkinleştir” düğmesine bir kez basın.
+            </div>
+            <div id="powerHistoryList" class="power-history-list">
+                <div class="empty-state">Henüz açılış/kapanış geçmişi yüklenmedi.</div>
+            </div>
+            <details class="power-history-legacy">
+                <summary>Eski Linux boot/shutdown kayıtlarını göster (last -x)</summary>
+                <pre id="powerHistoryLegacy">Henüz veri yok.</pre>
+            </details>
         </section>
 
         <section class="panel app-page-section" id="maintenanceTools" data-page="diagnostics">

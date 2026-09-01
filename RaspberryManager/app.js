@@ -2217,3 +2217,131 @@ async function checkGitHubPagesAgent(){
 $("agentCheckBtn")?.addEventListener("click",()=>checkGitHubPagesAgent());
 setTimeout(()=>checkGitHubPagesAgent(),30);
 
+
+
+/* ==========================================================================
+   v13.7 — Açılış/Kapanış Geçmişi + SSH CMD
+   ========================================================================== */
+
+function v137Escape(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[ch]));
+}
+
+function renderPowerHistory(entries = []) {
+    const box = $("powerHistoryList");
+    if (!box) return;
+
+    if (!entries.length) {
+        box.innerHTML = `<div class="empty-state">Ayrıntılı olay kaydı henüz yok. İzleme yeni açıldıysa sonraki olaylar burada birikecek.</div>`;
+        return;
+    }
+
+    box.innerHTML = entries.map(item => {
+        const level = ["critical","warning","info"].includes(item.level) ? item.level : "info";
+        const temp = item.temperature && item.temperature !== "unknown"
+            ? `<small>Sıcaklık: ${v137Escape(item.temperature)} °C</small>` : "";
+        const thr = item.throttled && item.throttled !== "unknown"
+            ? `<small>${v137Escape(item.throttled)}</small>` : "";
+        return `
+            <article class="power-history-item ${level}">
+                <span class="power-history-dot"></span>
+                <div class="power-history-body">
+                    <div class="power-history-title">
+                        <strong>${v137Escape(item.title || item.event || "Sistem olayı")}</strong>
+                        <span class="status ${level === "critical" ? "error" : level === "warning" ? "running" : "neutral"}">
+                            ${level === "critical" ? "KRİTİK" : level === "warning" ? "UYARI" : "BİLGİ"}
+                        </span>
+                    </div>
+                    <p>${v137Escape(item.reason || "")}</p>
+                    <div class="power-history-meta">${thr}${temp}</div>
+                </div>
+                <time>${v137Escape(item.time || "")}</time>
+            </article>`;
+    }).join("");
+}
+
+async function refreshPowerHistory() {
+    const btn = $("powerHistoryRefreshBtn");
+    try {
+        const target = requireToolTarget();
+        btn.disabled = true;
+        setStatus($("powerHistoryState"), "Okunuyor", "running");
+        $("powerHistoryInfo").textContent = "Raspberry açılış/kapanış geçmişi okunuyor…";
+
+        const data = await api("/api/tools/power-history", {
+            method: "POST",
+            body: JSON.stringify(target),
+        });
+
+        renderPowerHistory(data.entries || []);
+        $("powerHistoryLegacy").textContent = data.legacy_raw || "Eski wtmp/last kaydı bulunamadı.";
+
+        if (data.monitor_installed) {
+            $("powerHistoryInfo").innerHTML =
+                `<strong>Detaylı izleme aktif.</strong> Mevcut boot: ${v137Escape(data.current_boot || "bilinmiyor")} · ` +
+                `${v137Escape(data.throttled || "")}<br><small>${v137Escape(data.note || "")}</small>`;
+            setStatus($("powerHistoryState"), "İzleme aktif", "success");
+        } else {
+            $("powerHistoryInfo").innerHTML =
+                `<strong>Detaylı izleme henüz aktif değil.</strong> Eski Linux kayıtları yine görüntülenebilir. ` +
+                `Gelecekteki kapanmaların neden analizini iyileştirmek için “İzlemeyi Etkinleştir” düğmesine basın.`;
+            setStatus($("powerHistoryState"), "Kurulum gerekli", "running");
+        }
+    } catch (err) {
+        setStatus($("powerHistoryState"), "Hata", "error");
+        $("powerHistoryInfo").textContent = `Hata: ${err.message}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function installPowerHistory() {
+    const btn = $("powerHistoryInstallBtn");
+    try {
+        const target = requireToolTarget();
+        if (!await uiConfirm(
+            "Seçili Raspberry'ye açılış/kapanış ve güç geçmişi izleme servisi kurulsun mu?",
+            {title: "Güç Geçmişi İzleme"}
+        )) return;
+
+        btn.disabled = true;
+        setStatus($("powerHistoryState"), "Kuruluyor", "running");
+
+        const data = await api("/api/tools/power-history/install", {
+            method: "POST",
+            body: JSON.stringify(target),
+        });
+
+        showToast(data.message || "İzleme etkinleştirildi.", "success", "Güç Geçmişi");
+        await refreshPowerHistory();
+    } catch (err) {
+        setStatus($("powerHistoryState"), "Hata", "error");
+        showToast(err.message, "error", "Güç Geçmişi");
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+$("powerHistoryRefreshBtn")?.addEventListener("click", refreshPowerHistory);
+$("powerHistoryInstallBtn")?.addEventListener("click", installPowerHistory);
+
+$("openSshCmdBtn")?.addEventListener("click", async () => {
+    try {
+        if (!selectedDevice) throw new Error("Önce ağ listesinden bir Raspberry Pi seçin.");
+        if (!verifiedDevices[selectedDevice]?.is_raspberry) {
+            throw new Error("Önce seçili cihazı Raspberry Pi olarak doğrulayın.");
+        }
+        const username = $("sshUser").value.trim();
+        if (!username) throw new Error("SSH kullanıcı adı gerekli.");
+
+        const data = await api("/api/tools/open-ssh-cmd", {
+            method: "POST",
+            body: JSON.stringify({ip:selectedDevice, username}),
+        });
+        showToast(data.message || "SSH CMD açıldı.", "success", "SSH CMD");
+    } catch (err) {
+        showToast(err.message, "error", "SSH CMD");
+    }
+});
