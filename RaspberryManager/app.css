@@ -1013,3 +1013,28 @@ body.auth-locked > .ui-toast-stack { pointer-events:none; user-select:none; filt
         grid-column: 2;
     }
 }
+
+
+/* v13.8 Multi HDMI + GirCik Designer */
+.v138-display-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
+.v138-display-card{border:1px solid var(--border);border-radius:12px;padding:12px;background:rgba(255,255,255,.02)}
+.v138-display-card strong{display:block;font-size:14px}
+.v138-display-card small{display:block;color:var(--muted);margin-top:4px}
+.gircik-designer-grid{display:grid;grid-template-columns:minmax(340px,.9fr) minmax(420px,1.1fr);gap:18px}
+.gircik-controls{display:flex;flex-direction:column;gap:12px}
+.designer-card{border:1px solid var(--border);border-radius:12px;padding:14px;background:rgba(255,255,255,.02)}
+.designer-card h3{margin:0 0 10px}
+.gircik-preview-wrap{position:sticky;top:92px;align-self:start}
+.gircik-preview-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.gircik-preview{position:relative;aspect-ratio:16/9;max-height:68vh;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#101318;color:#fff;display:grid;grid-template-rows:22% 1fr 20%}
+.g-preview-top,.g-preview-bottom{display:flex;align-items:center;justify-content:center;text-align:center;padding:10px}
+.g-preview-main{position:relative;display:flex;align-items:center;justify-content:center}
+.g-preview-qr{position:absolute;left:50%;transform:translateX(-50%);width:20%;aspect-ratio:1;border:3px solid currentColor;background:repeating-linear-gradient(45deg,currentColor 0 3px,transparent 3px 7px);display:flex;align-items:center;justify-content:center}
+.g-preview-qr span{background:rgba(0,0,0,.65);padding:4px 7px;border-radius:5px;font-size:12px}
+.g-preview-center{font-size:clamp(18px,2.5vw,38px);font-weight:700;text-align:center;max-width:65%}
+.g-center-line{position:absolute;left:0;right:0;top:50%;border-top:1px dashed rgba(255,255,255,.35);font-size:9px;color:rgba(255,255,255,.45);padding-left:5px}
+.g-safe-label{position:absolute;z-index:2;font-size:8px;letter-spacing:.08em;color:rgba(255,255,255,.42);left:8px}
+.g-safe-top{top:5px}.g-safe-bottom{bottom:5px}
+.g-preview-zone-image{max-width:30%;max-height:80%;object-fit:contain}
+.g-preview-center img{max-width:100%;max-height:120px;object-fit:contain}
+@media(max-width:900px){.gircik-designer-grid{grid-template-columns:1fr}.gircik-preview-wrap{position:static}.v138-display-grid{grid-template-columns:1fr}}

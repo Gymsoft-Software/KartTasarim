@@ -414,7 +414,7 @@ $("scanBtn").addEventListener("click", async () => {
     }
 });
 
-$("verifyBtn").addEventListener("click", async () => {
+$("verifyBtn")?.addEventListener("click", async () => {
     if (!selectedDevice) return alert("Önce ağ listesinden bir cihaz seçin.");
     const btn = $("verifyBtn");
     btn.disabled = true;
@@ -646,9 +646,6 @@ function startPolling() {
 
 function requireTurnstileTarget() {
     if (!selectedDevice) throw new Error("Önce ağ listesinden bir Raspberry Pi seçin.");
-    if (!verifiedDevices[selectedDevice]?.is_raspberry) {
-        throw new Error("Önce seçili cihazı Raspberry Pi olarak doğrulayın.");
-    }
     const username = $("sshUser").value.trim();
     const password = $("sshPassword").value;
     if (!username || !password) throw new Error("SSH kullanıcı adı ve parola gerekli.");
@@ -1089,7 +1086,7 @@ $("apacheRestartBtn").addEventListener("click", () => runTurnService("apache_res
 $("chromiumRestartBtn").addEventListener("click", () => runTurnService("chromium_restart", "chromiumRestartBtn", "Chromium kiosk yeniden başlatılsın mı?"));
 $("gc3RestartBtn").addEventListener("click", () => runTurnService("gc3_check", "gc3RestartBtn", "gc3.py dosyası ve anlık geçiş durumu kontrol edilsin mi?"));
 
-$("diagnoseBtn").addEventListener("click", () => runTextTool({
+$("diagnoseBtnLegacy")?.addEventListener("click", () => runTextTool({
     button: "diagnoseBtn",
     state: "diagnoseState",
     output: "diagnoseOutput",
@@ -1144,7 +1141,7 @@ async function takeScreenshot(triggerId = "screenshotBtn") {
     }
 }
 
-$("screenshotBtn")?.addEventListener("click", () => takeScreenshot("screenshotBtn"));
+$("screenshotBtnLegacy")?.addEventListener("click", () => takeScreenshot("screenshotBtnLegacy"));
 $("dashScreenshotBtn")?.addEventListener("click", () => takeScreenshot("dashScreenshotBtn"));
 
 function renderGpioPins(pins) {
@@ -1216,8 +1213,8 @@ async function loadDisplayModes() {
     }
 }
 
-$("displayModesBtn")?.addEventListener("click", loadDisplayModes);
-$("displayApplyBtn")?.addEventListener("click", async () => {
+$("displayModesBtnLegacy")?.addEventListener("click", loadDisplayModes);
+$("displayApplyBtnLegacy")?.addEventListener("click", async () => {
     const btn = $("displayApplyBtn");
     try {
         const target = requireToolTarget();
@@ -1352,6 +1349,7 @@ const PAGE_META = {
     devices: ["CİHAZ & SSH", "Cihazlar", "Ağ taraması, cihaz seçimi ve SSH doğrulaması aynı sayfada."],
     installation: ["KURULUM", "Kurulum Merkezi", "Raspberry kurulumu, GitHub Release ve turnike lisans ayarları."],
     turnstile: ["TURNİKE", "Turnike Kontrolü", "Geçiş, yön, süre, servis ve test işlemleri."],
+    gircik: ["GIRCIK PHP", "GirCik Tasarım", "QR, merkez içeriği, renkler, üst/alt alan ve görsel yönetimi."],
     hardware: ["DONANIM", "Ekran & Donanım", "Ekran çözünürlüğü, screenshot ve GPIO testleri."],
     network: ["AĞ", "Ağ Yönetimi", "IP, DHCP, bağlantı profilleri ve ağ kalite kontrolleri."],
     health: ["SİSTEM", "Sağlık & Sistem", "Sıcaklık, CPU, RAM, disk ve sistem bilgileri."],
@@ -2330,9 +2328,6 @@ $("powerHistoryInstallBtn")?.addEventListener("click", installPowerHistory);
 $("openSshCmdBtn")?.addEventListener("click", async () => {
     try {
         if (!selectedDevice) throw new Error("Önce ağ listesinden bir Raspberry Pi seçin.");
-        if (!verifiedDevices[selectedDevice]?.is_raspberry) {
-            throw new Error("Önce seçili cihazı Raspberry Pi olarak doğrulayın.");
-        }
         const username = $("sshUser").value.trim();
         if (!username) throw new Error("SSH kullanıcı adı gerekli.");
 
@@ -2345,3 +2340,198 @@ $("openSshCmdBtn")?.addEventListener("click", async () => {
         showToast(err.message, "error", "SSH CMD");
     }
 });
+
+
+/* ==========================================================================
+   v13.8 — Multi HDMI / Auto SSH / Structured Health / GirCik Designer
+   ========================================================================== */
+let v138Displays = [];
+let v138SelectedOutput = "";
+
+function v138Target(){
+    if(!selectedDevice) throw new Error("Önce ağ listesinden bir Raspberry Pi seçin.");
+    const username=$("sshUser")?.value.trim()||"";
+    const password=$("sshPassword")?.value||"";
+    if(!username||!password) throw new Error("SSH kullanıcı adı ve parola gerekli.");
+    return {ip:selectedDevice,username,password};
+}
+
+async function v138LoadDisplays(){
+    const target=v138Target();
+    setStatus($("displayState"),"Ekranlar aranıyor","running");
+    const data=await api("/api/v13-8/displays",{method:"POST",body:JSON.stringify(target)});
+    v138Displays=data.displays||[];
+    const select=$("displayOutputSelect");
+    if(select){
+        select.innerHTML=v138Displays.length?v138Displays.map(d=>`<option value="${escapeHtml(d.name)}" ${d.connected?"":"disabled"}>${escapeHtml(d.name)} · ${d.connected?"Bağlı":"Bağlı değil"} · ${escapeHtml(d.currentMode||"--")}</option>`).join(""):'<option value="">HDMI bulunamadı</option>';
+    }
+    const connected=v138Displays.filter(x=>x.connected);
+    if(!v138SelectedOutput||!connected.some(x=>x.name===v138SelectedOutput))v138SelectedOutput=connected[0]?.name||"";
+    if(select&&v138SelectedOutput)select.value=v138SelectedOutput;
+    renderV138DisplayCards();
+    v138FillModes();
+    $("displayOutput").textContent=`Oturum: ${data.session}\n`+v138Displays.map(d=>`${d.name} | ${d.connected?"connected":"disconnected"} | ${d.currentMode||"--"} | ${d.position||"--"} | ${d.transform||"normal"} | ${d.source}`).join("\n");
+    setStatus($("displayState"),`${connected.length} bağlı ekran`,"success");
+    return data;
+}
+
+function renderV138DisplayCards(){
+    const box=$("v138DisplayCards"); if(!box)return;
+    box.innerHTML=v138Displays.map(d=>`<div class="v138-display-card">
+        <strong>${escapeHtml(d.name)}</strong>
+        <small>${d.connected?"● Bağlı":"○ Bağlı değil"} · ${escapeHtml(d.source||"")}</small>
+        <small>Aktif: ${escapeHtml(d.currentMode||"--")} ${d.refresh?`@ ${escapeHtml(d.refresh)} Hz`:""}</small>
+        <small>Konum: ${escapeHtml(d.position||"--")} · Yön: ${escapeHtml(d.transform||"normal")}</small>
+        <small>${(d.modes||[]).length} mod</small>
+    </div>`).join("");
+}
+
+function v138FillModes(){
+    const d=v138Displays.find(x=>x.name===v138SelectedOutput);
+    const sel=$("displayModeSelect"); if(!sel)return;
+    const unique=[];
+    (d?.modes||[]).forEach(m=>{if(!unique.some(x=>x.mode===m.mode))unique.push(m)});
+    if(!unique.length&&d?.currentMode)unique.push({mode:d.currentMode,label:d.currentMode,current:true});
+    sel.innerHTML=unique.length?unique.map(m=>`<option value="${escapeHtml(m.mode)}" ${m.mode===d?.currentMode?"selected":""}>${escapeHtml(m.label||m.mode)}${m.mode===d?.currentMode?" · aktif":""}</option>`).join(""):'<option value="">Mod bulunamadı</option>';
+    const transform=d?.transform||"normal";
+    if(["normal","left","right","inverted"].includes(transform))$("displayDirection").value=transform;
+}
+
+$("displayOutputSelect")?.addEventListener("change",e=>{v138SelectedOutput=e.target.value;v138FillModes();});
+
+async function v138ApplyDisplay(){
+    const target=v138Target();
+    const mode=$("displayModeSelect").value;
+    const direction=$("displayDirection").value;
+    const output=$("displayOutputSelect").value;
+    if(!output||!mode)throw new Error("Önce HDMI çıkışı ve çözünürlük seçin.");
+    if(!await uiConfirm(`${output} → ${mode} / ${direction} uygulanıp kalıcılaştırılsın mı?`,{title:"Ekran Ayarı"}))return;
+    setStatus($("displayState"),"Uygulanıyor","running");
+    const data=await api("/api/v13-8/display/apply",{method:"POST",body:JSON.stringify({...target,output,mode,direction})});
+    $("displayOutput").textContent=data.output||"Ekran ayarı uygulandı.";
+    setStatus($("displayState"),"Uygulandı","success");
+    setTimeout(()=>v138LoadDisplays().catch(()=>{}),800);
+}
+
+async function v138Screenshot(output){
+    const target=v138Target();
+    setStatus($("screenshotState"),"Alınıyor","running");
+    const data=await api("/api/v13-8/screenshot",{method:"POST",body:JSON.stringify({...target,output})});
+    $("screenImage").src=data.image;
+    $("screenPreview").classList.add("has-image");
+    setStatus($("screenshotState"),data.tool||"Tamamlandı","success");
+}
+
+$("displayModesBtn")?.addEventListener("click",()=>v138LoadDisplays().catch(err=>{setStatus($("displayState"),"Hata","error");$("displayOutput").textContent=err.message;}));
+$("displayApplyBtn")?.addEventListener("click",()=>v138ApplyDisplay().catch(err=>{setStatus($("displayState"),"Hata","error");$("displayOutput").textContent=err.message;}));
+$("screenshotBtn")?.addEventListener("click",()=>v138Screenshot($("screenshotOutputSelect")?.value||"__all__").catch(err=>{setStatus($("screenshotState"),"Hata","error");showToast(err.message,"error","Screenshot")}));
+$("screenshotOutputSelect")?.addEventListener("focus",async()=>{
+    try{
+        if(!v138Displays.length)await v138LoadDisplays();
+        const sel=$("screenshotOutputSelect");
+        const current=sel.value;
+        sel.innerHTML='<option value="__all__">Tüm Masaüstü</option>'+v138Displays.filter(x=>x.connected).map(d=>`<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`).join("");
+        if([...sel.options].some(o=>o.value===current))sel.value=current;
+    }catch(e){}
+});
+
+/* Structured v13.8 diagnostics */
+$("diagnoseBtn")?.addEventListener("click",async()=>{
+    const btn=$("diagnoseBtn");
+    try{
+        const target=v138Target();btn.disabled=true;setStatus($("diagnoseState"),"Türkçe sağlık sorgulanıyor","running");$("diagnoseOutput").textContent="Yapılandırılmış sağlık verileri alınıyor…";
+        const data=await api("/api/v13-8/health-diagnose",{method:"POST",body:JSON.stringify(target)});
+        $("diagnoseOutput").textContent=data.output;setStatus($("diagnoseState"),"Tamamlandı","success");
+    }catch(err){$("diagnoseOutput").textContent=`Hata: ${err.message}`;setStatus($("diagnoseState"),"Hata","error");}
+    finally{btn.disabled=false;}
+});
+
+/* GirCik designer */
+let v138GircikConfig=null;
+const gIds=["gBg","gTextColor","gAccent","gQrSize","gQrPosition","gCenterMode","gCenterText","gCenterLogoSize","gTopMode","gTopText","gTopSize","gBottomMode","gBottomText","gBottomSize"];
+
+function v138ReadGircikForm(){
+ return {
+  backgroundColor:$("gBg").value,textColor:$("gTextColor").value,accentColor:$("gAccent").value,
+  qrSizePercent:Number($("gQrSize").value),qrPosition:$("gQrPosition").value,
+  centerMode:$("gCenterMode").value,centerText:$("gCenterText").value,centerLogo:v138GircikConfig?.centerLogo||"",centerLogoSizePercent:Number($("gCenterLogoSize").value),
+  topMode:$("gTopMode").value,topText:$("gTopText").value,topImage:v138GircikConfig?.topImage||"",topSizePercent:Number($("gTopSize").value),
+  bottomMode:$("gBottomMode").value,bottomText:$("gBottomText").value,bottomImage:v138GircikConfig?.bottomImage||"",bottomSizePercent:Number($("gBottomSize").value)
+ };
+}
+function v138ApplyGircikForm(c){
+ v138GircikConfig={...c};
+ $("gBg").value=c.backgroundColor;$("gTextColor").value=c.textColor;$("gAccent").value=c.accentColor;
+ $("gQrSize").value=c.qrSizePercent;$("gQrPosition").value=c.qrPosition;$("gCenterMode").value=c.centerMode;$("gCenterText").value=c.centerText||"";$("gCenterLogoSize").value=c.centerLogoSizePercent;
+ $("gTopMode").value=c.topMode;$("gTopText").value=c.topText||"";$("gTopSize").value=c.topSizePercent;
+ $("gBottomMode").value=c.bottomMode;$("gBottomText").value=c.bottomText||"";$("gBottomSize").value=c.bottomSizePercent;
+ v138RenderPreview();
+}
+function v138RenderPreview(){
+ const c=v138ReadGircikForm(),p=$("gPreview"); if(!p)return;
+ p.style.background=c.backgroundColor;p.style.color=c.textColor;
+ $("gQrSizeLabel").textContent=c.qrSizePercent+"%";$("gCenterLogoSizeLabel").textContent=c.centerLogoSizePercent+"%";$("gTopSizeLabel").textContent=c.topSizePercent+"%";$("gBottomSizeLabel").textContent=c.bottomSizePercent+"%";
+ const qr=$("gPreviewQr");qr.style.width=Math.max(12,Math.min(48,c.qrSizePercent*.62))+"%";qr.style.color=c.accentColor;qr.style.top="";qr.style.bottom="";qr.style.transform="translateX(-50%)";
+ if(c.qrPosition==="top")qr.style.top="4%";else if(c.qrPosition==="bottom")qr.style.bottom="4%";else{qr.style.top="50%";qr.style.transform="translate(-50%,-50%)";}
+ const center=$("gPreviewCenter");
+ if(c.centerMode==="none")center.innerHTML="";
+ else if(c.centerMode==="logo"&&c.centerLogo)center.innerHTML=`<img src="${escapeHtml(c.centerLogo)}" style="max-width:${c.centerLogoSizePercent}%">`;
+ else center.textContent=c.centerMode==="text"?c.centerText:"LOGO";
+ const top=$("gPreviewTop"),bottom=$("gPreviewBottom");
+ top.innerHTML=c.topMode==="text"?escapeHtml(c.topText):(c.topMode==="image"&&c.topImage?`<img class="g-preview-zone-image" src="${escapeHtml(c.topImage)}">`:"");
+ bottom.innerHTML=c.bottomMode==="text"?escapeHtml(c.bottomText):(c.bottomMode==="image"&&c.bottomImage?`<img class="g-preview-zone-image" src="${escapeHtml(c.bottomImage)}">`:"");
+}
+gIds.forEach(id=>$(id)?.addEventListener("input",v138RenderPreview));
+$("gPreviewSize")?.addEventListener("change",e=>{const [w,h]=e.target.value.split("x").map(Number);$("gPreview").style.aspectRatio=`${w}/${h}`;});
+
+function fileAsDataUrl(input){
+ return new Promise((resolve,reject)=>{const f=input?.files?.[0];if(!f)return resolve("");if(f.size>3*1024*1024)return reject(new Error("Görsel 3 MB sınırını aşıyor."));const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(new Error("Görsel okunamadı."));r.readAsDataURL(f);});
+}
+async function v138LoadGircik(){
+ const target=v138Target();setStatus($("gircikState"),"Okunuyor","running");
+ const data=await api("/api/v13-8/gircik/config",{method:"POST",body:JSON.stringify(target)});v138ApplyGircikForm(data.config);$("gircikOutput").textContent="Mevcut GirCik tasarımı cihazdan okundu.";setStatus($("gircikState"),"Yüklendi","success");
+}
+$("gircikLoadBtn")?.addEventListener("click",()=>v138LoadGircik().catch(err=>{setStatus($("gircikState"),"Hata","error");$("gircikOutput").textContent=err.message;}));
+$("gircikDefaultsBtn")?.addEventListener("click",async()=>{try{const data=await api("/api/v13-8/gircik/defaults",{method:"POST",body:"{}"});v138ApplyGircikForm(data.config);$("gircikOutput").textContent="Varsayılan tasarım önizlemeye yüklendi. Raspberry henüz değiştirilmedi.";}catch(err){$("gircikOutput").textContent=err.message;}});
+$("gircikSaveBtn")?.addEventListener("click",async()=>{
+ const btn=$("gircikSaveBtn");
+ try{
+  const target=v138Target();if(!await uiConfirm("GirCik tasarımı Raspberry'ye uygulansın mı? Mevcut dosyaların yedeği otomatik alınacak.",{title:"GirCik Tasarım"}))return;
+  btn.disabled=true;setStatus($("gircikState"),"Kaydediliyor","running");
+  const uploads={centerLogo:await fileAsDataUrl($("gCenterLogoFile")),topImage:await fileAsDataUrl($("gTopImageFile")),bottomImage:await fileAsDataUrl($("gBottomImageFile"))};
+  const data=await api("/api/v13-8/gircik/save",{method:"POST",body:JSON.stringify({...target,config:v138ReadGircikForm(),uploads})});
+  v138ApplyGircikForm(data.config);$("gircikOutput").textContent=`${data.message}\nYedek: ${data.backup}`;setStatus($("gircikState"),"Uygulandı","success");showToast("GirCik tasarımı uygulandı.","success","GirCik");
+ }catch(err){$("gircikOutput").textContent=`Hata: ${err.message}`;setStatus($("gircikState"),"Hata","error");}
+ finally{btn.disabled=false;}
+});
+
+
+async function v138PreviewLocalImage(input,field){
+ const data=await fileAsDataUrl(input);if(!data)return;
+ if(!v138GircikConfig)v138GircikConfig=v138ReadGircikForm();
+ v138GircikConfig[field]=data;v138RenderPreview();
+}
+$("gCenterLogoFile")?.addEventListener("change",()=>v138PreviewLocalImage($("gCenterLogoFile"),"centerLogo").catch(e=>showToast(e.message,"error","Görsel")));
+$("gTopImageFile")?.addEventListener("change",()=>v138PreviewLocalImage($("gTopImageFile"),"topImage").catch(e=>showToast(e.message,"error","Görsel")));
+$("gBottomImageFile")?.addEventListener("change",()=>v138PreviewLocalImage($("gBottomImageFile"),"bottomImage").catch(e=>showToast(e.message,"error","Görsel")));
+
+/* Yedek seçimli geri yükleme. */
+$("gircikBackupsBtn")?.addEventListener("click",async()=>{
+ try{
+  const target=v138Target();const data=await api("/api/v13-8/gircik/backups",{method:"POST",body:JSON.stringify(target)});
+  const sel=$("gircikBackupSelect");
+  sel.innerHTML='<option value="">Yedek seçin</option>'+(data.backups||[]).map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("");
+  $("gircikOutput").textContent=data.backups?.length?`${data.backups.length} tasarım yedeği bulundu.`:"Henüz tasarım yedeği yok.";
+ }catch(err){$("gircikOutput").textContent=err.message;}
+});
+$("gircikRestoreBtn")?.addEventListener("click",async()=>{
+ try{
+  const backup=$("gircikBackupSelect").value;if(!backup)throw new Error("Önce yedek seçin.");
+  if(!await uiConfirm(`${backup} geri yüklensin mi?`,{title:"GirCik Yedek Geri Yükleme"}))return;
+  const target=v138Target();const data=await api("/api/v13-8/gircik/restore",{method:"POST",body:JSON.stringify({...target,backup})});
+  v138ApplyGircikForm(data.config);$("gircikOutput").textContent=data.message;setStatus($("gircikState"),"Geri yüklendi","success");
+ }catch(err){$("gircikOutput").textContent=`Hata: ${err.message}`;setStatus($("gircikState"),"Hata","error");}
+});
+
+/* Ekran & Donanım sayfası açılınca HDMI çıkışlarını otomatik keşfet. */
+document.querySelector('[data-page-link="hardware"]')?.addEventListener("click",()=>setTimeout(()=>v138LoadDisplays().catch(()=>{}),120));

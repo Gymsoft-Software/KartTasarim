@@ -42,6 +42,7 @@
             <a href="#devices" data-page-link="devices"><span>▦</span><div><strong>Cihazlar</strong><small>Tarama & SSH</small></div></a>
             <a href="#installation" data-page-link="installation"><span>↓</span><div><strong>Kurulum</strong><small>Raspberry & turnike</small></div></a>
             <a href="#turnstile" data-page-link="turnstile"><span>↔</span><div><strong>Turnike</strong><small>Kontrol & test</small></div></a>
+            <a href="#gircik" data-page-link="gircik"><span>◫</span><div><strong>GirCik PHP</strong><small>Tasarım & QR</small></div></a>
             <a href="#hardware" data-page-link="hardware"><span>⚡</span><div><strong>Ekran & Donanım</strong><small>GPIO & görüntü</small></div></a>
             <a href="#network" data-page-link="network"><span>⌁</span><div><strong>Ağ</strong><small>IP, DHCP, kalite</small></div></a>
             <a href="#health" data-page-link="health"><span>♥</span><div><strong>Sağlık</strong><small>Sistem & performans</small></div></a>
@@ -49,7 +50,7 @@
             <a href="#settings" data-page-link="settings"><span>⚙</span><div><strong>Ayarlar</strong><small>Güvenlik & agent</small></div></a>
         </nav>
         <div class="sidebar-note">
-            <strong>GYMSOFT Manager v13.7</strong>
+            <strong>GYMSOFT Manager v13.8</strong>
             <span id="sidebarModeText">Gerçek cihaz modu</span>
             <span class="sidebar-agent" id="sidebarAgentText">Agent bekleniyor</span>
         </div>
@@ -93,7 +94,7 @@
                 <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
                 <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
                 <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
-                <span class="badge">v13.7 Power Monitor</span>
+                <span class="badge">v13.8 Power Monitor</span>
             </div>
         </header>
 
@@ -205,10 +206,9 @@
                     </label>
                 </div>
                 <div class="ssh-action-row">
-                    <button type="button" id="verifyBtn" class="secondary">Raspberry Pi'yi Doğrula</button>
                     <button type="button" id="openSshCmdBtn" class="primary">SSH CMD Aç</button>
                 </div>
-                <div id="deviceInfo" class="info-box muted">Cihaz bilgisi henüz alınmadı.</div>
+                <div id="deviceInfo" class="info-box muted">SSH doğrulaması işlemler sırasında otomatik yapılır. Gerekirse “SSH CMD Aç” ile terminal açabilirsiniz.</div>
             </div>
 
             <div class="panel">
@@ -468,36 +468,134 @@
             </div>
         </section>
 
-        <section class="panel app-page-section" id="displayTools" data-page="hardware">
+        
+        <section class="panel app-page-section gircik-designer-page" id="gircikDesigner" data-page="gircik">
             <div class="section-title">
                 <div>
-                    <h2>Ekran</h2>
-                    <p>wlr-randr/xrandr çıktısını görüntüle, ekranı normal yöne al veya labwc autostart dosyasını incele.</p>
+                    <h2>GirCik PHP Tasarım Editörü</h2>
+                    <p>gircik.php ekranını kod yazmadan özelleştirin. Her kayıt öncesinde otomatik yedek alınır.</p>
                 </div>
+                <span id="gircikState" class="status neutral">Hazır</span>
+            </div>
+
+            <div class="gircik-designer-grid">
+                <div class="gircik-controls">
+                    <div class="designer-card">
+                        <h3>Renkler</h3>
+                        <div class="three-col">
+                            <label><span>Arka Plan</span><input id="gBg" type="color" value="#101318"></label>
+                            <label><span>Yazı</span><input id="gTextColor" type="color" value="#FFFFFF"></label>
+                            <label><span>Vurgu</span><input id="gAccent" type="color" value="#0099FF"></label>
+                        </div>
+                    </div>
+
+                    <div class="designer-card">
+                        <h3>QR Kod</h3>
+                        <label><span>Boyut: <strong id="gQrSizeLabel">34%</strong></span><input id="gQrSize" type="range" min="15" max="70" value="34"></label>
+                        <label><span>Konum</span>
+                            <select id="gQrPosition">
+                                <option value="top">Üst</option>
+                                <option value="center">Merkez</option>
+                                <option value="bottom">Alt</option>
+                            </select>
+                        </label>
+                        <small>QR her zaman görünür kalır; dokunma veya seçim gerektirmez.</small>
+                    </div>
+
+                    <div class="designer-card">
+                        <h3>Merkez İçeriği</h3>
+                        <label><span>Tür</span>
+                            <select id="gCenterMode">
+                                <option value="text">Yazı</option>
+                                <option value="logo">Logo</option>
+                                <option value="none">Boş</option>
+                            </select>
+                        </label>
+                        <label><span>Yazı</span><input id="gCenterText" type="text" maxlength="220" value="Kartınızı Okutun"></label>
+                        <label><span>Logo</span><input id="gCenterLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+                        <label><span>Logo Boyutu: <strong id="gCenterLogoSizeLabel">34%</strong></span><input id="gCenterLogoSize" type="range" min="10" max="70" value="34"></label>
+                    </div>
+
+                    <div class="designer-card">
+                        <h3>Üst Alan</h3>
+                        <label><span>Tür</span>
+                            <select id="gTopMode"><option value="none">Yok</option><option value="text">Yazı</option><option value="image">Görsel</option></select>
+                        </label>
+                        <label><span>Yazı</span><input id="gTopText" type="text" maxlength="220" placeholder="HOŞ GELDİNİZ"></label>
+                        <label><span>Görsel</span><input id="gTopImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+                        <label><span>Görsel Boyutu: <strong id="gTopSizeLabel">22%</strong></span><input id="gTopSize" type="range" min="8" max="45" value="22"></label>
+                    </div>
+
+                    <div class="designer-card">
+                        <h3>Alt Alan</h3>
+                        <label><span>Tür</span>
+                            <select id="gBottomMode"><option value="none">Yok</option><option value="text">Yazı</option><option value="image">Görsel</option></select>
+                        </label>
+                        <label><span>Yazı</span><input id="gBottomText" type="text" maxlength="220" placeholder="www.salonadi.com"></label>
+                        <label><span>Görsel</span><input id="gBottomImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+                        <label><span>Görsel Boyutu: <strong id="gBottomSizeLabel">18%</strong></span><input id="gBottomSize" type="range" min="8" max="45" value="18"></label>
+                    </div>
+
+                    <div class="tool-button-row">
+                        <button type="button" id="gircikLoadBtn" class="secondary">Cihazdan Oku</button>
+                        <button type="button" id="gircikDefaultsBtn" class="secondary">Varsayılana Dön</button>
+                        <button type="button" id="gircikSaveBtn" class="primary">Raspberry'ye Uygula</button>
+                        <button type="button" id="gircikBackupsBtn" class="secondary">Yedekleri Listele</button><select id="gircikBackupSelect"><option value="">Yedek seçin</option></select><button type="button" id="gircikRestoreBtn" class="secondary">Seçili Yedeği Geri Yükle</button>
+                    </div>
+                    <pre id="gircikOutput" class="tool-output">Henüz işlem yapılmadı.</pre>
+                </div>
+
+                <div class="gircik-preview-wrap">
+                    <div class="gircik-preview-toolbar">
+                        <strong>Canlı Önizleme</strong>
+                        <select id="gPreviewSize">
+                            <option value="1280x720">1280×720</option>
+                            <option value="1024x768">1024×768</option>
+                            <option value="1920x1080">1920×1080</option>
+                        </select>
+                    </div>
+                    <div class="gircik-preview" id="gPreview">
+                        <div class="g-safe-label g-safe-top">ÜST GÜVENLİ ALAN</div>
+                        <div class="g-preview-top" id="gPreviewTop"></div>
+                        <div class="g-preview-main">
+                            <div class="g-preview-qr" id="gPreviewQr"><span>QR</span></div>
+                            <div class="g-preview-center" id="gPreviewCenter">Kartınızı Okutun</div>
+                            <div class="g-center-line">GEOMETRİK MERKEZ</div>
+                        </div>
+                        <div class="g-preview-bottom" id="gPreviewBottom"></div>
+                        <div class="g-safe-label g-safe-bottom">ALT GÜVENLİ ALAN</div>
+                    </div>
+                    <div class="info-box muted">
+                        Merkez çizgisi turnike ekranının geometrik merkezidir. QR kod dokunmasız ve sürekli görünür tutulur.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+<section class="panel app-page-section" id="displayTools" data-page="hardware">
+            <div class="section-title">
+                <div><h2>Çoklu HDMI Ekran Yönetimi</h2><p>Bağlı HDMI çıkışları, desteklenen modlar ve aktif çözünürlükler Raspberry'den otomatik okunur.</p></div>
                 <span id="displayState" class="status neutral">Hazır</span>
             </div>
             <div class="display-editor">
-                <label><span>Çözünürlük</span><select id="displayModeSelect"><option value="">Önce ekran modlarını oku</option></select></label>
-                <label><span>Yön</span><select id="displayDirection"><option value="normal">Normal</option><option value="left">Left</option><option value="right">Right</option><option value="inverted">Inverted</option></select></label>
-                <button type="button" id="displayModesBtn" class="secondary">Modları Oku</button>
-                <button type="button" id="displayApplyBtn" class="primary">Uygula + Kalıcı Yap</button>
+                <label><span>İşlem Yapılacak Ekran</span><select id="displayOutputSelect"><option value="">Ekranları Oku</option></select></label>
+                <label><span>Çözünürlük / Mod</span><select id="displayModeSelect"><option value="">Ekranları Oku</option></select></label>
+                <label><span>Yön</span><select id="displayDirection"><option value="normal">Normal</option><option value="left">Sol 90°</option><option value="right">Sağ 90°</option><option value="inverted">180°</option></select></label>
+                <button type="button" id="displayModesBtn" class="secondary">HDMI'ları ve Modları Tara</button>
+                <button type="button" id="displayApplyBtn" class="primary">Seçili Ekrana Uygula + Kalıcı</button>
             </div>
-            <div class="tool-button-row">
-                <button type="button" id="displayInfoBtn" class="secondary">Ekran Bilgisini Getir</button>
-                <button type="button" id="displayNormalBtn" class="primary">Ekranı Normal Yöne Al</button>
-                <button type="button" id="displayLabwcBtn" class="secondary">labwc Autostart Göster</button>
-            </div>
-            <pre id="displayOutput" class="tool-output">Ekran işlemi çıktısı burada görüntülenecek.</pre>
+            <div class="v138-display-grid" id="v138DisplayCards"></div>
+            <pre id="displayOutput" class="tool-output">Henüz ekran bilgisi alınmadı.</pre>
         </section>
 
         <section class="grid visual-tools-grid app-page-section" id="visualTools" data-page="hardware">
             <div class="panel screenshot-panel">
                 <div class="section-title">
-                    <div><h2>Uzaktan Ekran Görüntüsü</h2><p>Wayland için grim, X11 için scrot kullanır.</p></div>
+                    <div><h2>Uzaktan Ekran Görüntüsü</h2><p>HDMI-A-1 / HDMI-A-2 dahil bağlı ekranlardan ayrı ayrı veya tüm masaüstünden görüntü alır.</p></div>
                     <span id="screenshotState" class="status neutral">Hazır</span>
                 </div>
                 <div class="screen-preview" id="screenPreview"><span>Henüz ekran görüntüsü alınmadı.</span><img id="screenImage" alt="Raspberry Pi kiosk ekran görüntüsü"></div>
-                <button type="button" id="screenshotBtn" class="primary">Ekran Görüntüsü Al</button>
+                <div class="tool-button-row"><select id="screenshotOutputSelect"><option value="__all__">Tüm Masaüstü</option></select><button type="button" id="screenshotBtn" class="primary">Seçili Ekranın Görüntüsünü Al</button></div>
             </div>
 
             <div class="panel" id="gpioTools">
@@ -689,12 +787,12 @@
         <section class="panel app-page-section" id="diagnoseTools" data-page="diagnostics">
             <div class="section-title">
                 <div>
-                    <h2>Hızlı Arıza Tespiti · Türkçe Yorumlu</h2>
+                    <h2>Türkçe Sağlık / Arıza Sorgusu v13.8</h2>
                     <p>Ham teknik değerlerin yanında “arıza var / olabilir / geçmişte olmuş / normal” şeklinde Türkçe anlam ve öneri verir.</p>
                 </div>
                 <span id="diagnoseState" class="status neutral">Hazır</span>
             </div>
-            <button type="button" id="diagnoseBtn" class="primary">Türkçe Hızlı Arıza Tespiti Çalıştır</button>
+            <button type="button" id="diagnoseBtn" class="primary">Türkçe Sağlık Sorgusu Çalıştır</button>
             <pre id="diagnoseOutput" class="tool-output diagnose-output">Henüz tanılama çalıştırılmadı.</pre>
         </section>
 
