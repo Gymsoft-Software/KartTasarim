@@ -73,7 +73,7 @@ function renderDevices(devices) {
             if (info) showDeviceInfo(info);
             else $("deviceInfo").innerHTML = "Cihaz bilgisi henüz alınmadı.";
             $("dashDeviceName").textContent = selectedDevice;
-            $("dashDeviceMeta").textContent = "SSH doğrulaması bekleniyor.";
+            $("dashDeviceMeta").textContent = "SSH bilgileri girildiğinde otomatik doğrulanacak.";
             resetLiveStatus();
             if (window.GYMSOFT_DEMO_MODE) {
                 const demoItem = demoInventory.find(x => x.ip === selectedDevice);
@@ -84,6 +84,11 @@ function renderDevices(devices) {
                 }
             } else {
                 refreshRealActivity(); resetReleaseStatus();
+                if ($("sshUser")?.value.trim() && $("sshPassword")?.value) {
+                    setTimeout(() => ensureSelectedDeviceVerified({silent:true})
+                        .then(() => scheduleLiveStatus(0))
+                        .catch(() => scheduleLiveStatus(500)), 80);
+                }
             }
             scheduleLiveStatus(250);
         });
@@ -308,6 +313,66 @@ function updateDashboard(status) {
     topPairs.forEach(([id, cls]) => { $(id).classList.remove("metric-ok", "metric-warn", "metric-bad"); $(id).classList.add(cls); });
 }
 
+
+let autoVerifyPromise = null;
+
+async function ensureSelectedDeviceVerified({silent = true} = {}) {
+    if (!selectedDevice) throw new Error("Önce ağ listesinden bir Raspberry Pi seçin.");
+
+    const verifyIp = selectedDevice;
+    const cached = verifiedDevices[verifyIp];
+    if (cached?.is_raspberry) return cached;
+
+    const username = $("sshUser")?.value.trim() || "";
+    const password = $("sshPassword")?.value || "";
+    if (!username || !password) {
+        if (!silent && $("deviceInfo")) {
+            $("deviceInfo").classList.remove("muted");
+            $("deviceInfo").textContent = "SSH kullanıcı adı ve parola gerekli.";
+        }
+        throw new Error("SSH kullanıcı adı ve parola gerekli.");
+    }
+
+    if (autoVerifyPromise) return autoVerifyPromise;
+
+    autoVerifyPromise = (async () => {
+        try {
+            if ($("deviceInfo") && !silent) {
+                $("deviceInfo").classList.remove("muted");
+                $("deviceInfo").textContent = "SSH ve Raspberry kimliği otomatik doğrulanıyor…";
+            }
+
+            const data = await api("/api/device-info", {
+                method: "POST",
+                body: JSON.stringify({ ip: verifyIp, username, password }),
+            });
+
+            if (!data.info?.is_raspberry) {
+                throw new Error("Seçilen cihaz Raspberry Pi olarak doğrulanamadı.");
+            }
+
+            verifiedDevices[verifyIp] = data.info;
+            if (selectedDevice === verifyIp) {
+                showDeviceInfo(data.info);
+                refreshRealActivity();
+                refreshReleaseStatus({silent:true});
+            }
+            return data.info;
+        } catch (err) {
+            delete verifiedDevices[verifyIp];
+            if ($("deviceInfo") && !silent && selectedDevice === verifyIp) {
+                $("deviceInfo").classList.remove("muted");
+                $("deviceInfo").textContent = `SSH otomatik doğrulama hatası: ${err.message}`;
+            }
+            throw err;
+        } finally {
+            autoVerifyPromise = null;
+        }
+    })();
+
+    return autoVerifyPromise;
+}
+
 function scheduleLiveStatus(delay = 3500) {
     if (liveStatusTimer) clearTimeout(liveStatusTimer);
     liveStatusTimer = setTimeout(refreshLiveStatus, delay);
@@ -329,13 +394,17 @@ async function refreshLiveStatus() {
     const username = $("sshUser").value.trim();
     const password = $("sshPassword").value;
     $("liveDevice").textContent = selectedDevice;
-    if (!username || !password || !verifiedDevices[selectedDevice]?.is_raspberry) {
-        setLiveConnection("SSH bekliyor", false);
+    if (!username || !password) {
+        setLiveConnection("SSH bilgisi bekleniyor", false);
         return scheduleLiveStatus();
     }
 
     liveStatusBusy = true;
     try {
+        if (!verifiedDevices[selectedDevice]?.is_raspberry) {
+            setLiveConnection("SSH doğrulanıyor", false);
+            await ensureSelectedDeviceVerified({silent:true});
+        }
         const data = await api("/api/live-status", {
             method: "POST",
             body: JSON.stringify({ ip: selectedDevice, username, password }),
@@ -546,8 +615,10 @@ $("clearInstallLogBtn")?.addEventListener("click", () => {
 
 $("installBtn").addEventListener("click", async () => {
     if (!selectedDevice) return alert("Önce kurulum yapılacak cihazı seçin.");
-    if (!verifiedDevices[selectedDevice]?.is_raspberry) {
-        return alert("Kurulumdan önce cihazı SSH üzerinden Raspberry Pi olarak doğrulayın.");
+    try {
+        await ensureSelectedDeviceVerified({silent:false});
+    } catch (err) {
+        return alert(`Kurulum başlatılamadı: ${err.message}`);
     }
 
     const mode = $("installMode").value;
@@ -864,8 +935,8 @@ $("saveTurnSetupBtn").addEventListener("click", async () => {
     }
 });
 
-$("sshUser").addEventListener("change", () => scheduleLiveStatus(250));
-$("sshPassword").addEventListener("change", () => scheduleLiveStatus(250));
+$("sshUser").addEventListener("change", () => { if (selectedDevice) { delete verifiedDevices[selectedDevice]; ensureSelectedDeviceVerified({silent:true}).catch(()=>{}); } scheduleLiveStatus(250); });
+$("sshPassword").addEventListener("change", () => { if (selectedDevice) { delete verifiedDevices[selectedDevice]; ensureSelectedDeviceVerified({silent:true}).catch(()=>{}); } scheduleLiveStatus(250); });
 resetLiveStatus();
 scheduleLiveStatus(1000);
 
@@ -1035,7 +1106,7 @@ $("systemBtn").addEventListener("click", () => runTextTool({
     running: "Okunuyor",
 }).catch(() => {}));
 
-$("displayInfoBtn").addEventListener("click", () => runTextTool({
+$("displayInfoBtn")?.addEventListener("click", () => runTextTool({
     button: "displayInfoBtn",
     state: "displayState",
     output: "displayOutput",
@@ -1043,7 +1114,7 @@ $("displayInfoBtn").addEventListener("click", () => runTextTool({
     payload: { action: "info" },
 }).catch(() => {}));
 
-$("displayNormalBtn").addEventListener("click", async () => {
+$("displayNormalBtn")?.addEventListener("click", async () => {
     if (!await uiConfirm(`${selectedDevice || "Seçili cihaz"} ekranı normal yöne alınsın mı?`)) return;
     await runTextTool({
         button: "displayNormalBtn",
@@ -1054,7 +1125,7 @@ $("displayNormalBtn").addEventListener("click", async () => {
     }).catch(() => {});
 });
 
-$("displayLabwcBtn").addEventListener("click", () => runTextTool({
+$("displayLabwcBtn")?.addEventListener("click", () => runTextTool({
     button: "displayLabwcBtn",
     state: "displayState",
     output: "displayOutput",
@@ -1346,7 +1417,7 @@ const UI_VERSION = "v10-live";
 
 const PAGE_META = {
     dashboard: ["YÖNETİM MERKEZİ", "Dashboard", "Tüm turnike ve Raspberry cihazlarının genel görünümü."],
-    devices: ["CİHAZ & SSH", "Cihazlar", "Ağ taraması, cihaz seçimi ve SSH doğrulaması aynı sayfada."],
+    devices: ["CİHAZ & SSH", "Cihazlar", "Ağ taraması, cihaz seçimi ve otomatik SSH doğrulaması aynı sayfada."],
     installation: ["KURULUM", "Kurulum Merkezi", "Raspberry kurulumu, GitHub Release ve turnike lisans ayarları."],
     turnstile: ["TURNİKE", "Turnike Kontrolü", "Geçiş, yön, süre, servis ve test işlemleri."],
     gircik: ["GIRCIK PHP", "GirCik Tasarım", "QR, merkez içeriği, renkler, üst/alt alan ve görsel yönetimi."],
@@ -1415,7 +1486,7 @@ function renderLiveAlarms(alarms = [], connectionError = "") {
     if (!selectedDevice || !verifiedDevices[selectedDevice]?.is_raspberry) {
         badge.className = "status neutral";
         badge.textContent = "Canlı bekliyor";
-        list.innerHTML = `<div class="info-box muted">Bir Raspberry doğrulandığında gerçek sağlık alarmları burada anlık olarak gösterilir.</div>`;
+        list.innerHTML = `<div class="info-box muted">Bir Raspberry seçip SSH bilgilerini girdikten sonra doğrulama otomatik yapılır ve sağlık alarmları burada gösterilir.</div>`;
         return;
     }
     if (!items.length) {
@@ -1457,7 +1528,7 @@ async function refreshRealActivity() {
     if (!selectedDevice || !verifiedDevices[selectedDevice]?.is_raspberry) {
         renderRealActivity([]);
         const area = $("demoRecentActivity");
-        if (area) area.innerHTML = `<div class="info-box muted">Bir Raspberry seçip SSH doğrulaması yaptığınızda yalnızca o cihazdaki işlemler burada görünür.</div>`;
+        if (area) area.innerHTML = `<div class="info-box muted">Bir Raspberry seçip SSH bilgilerini girdikten sonra yalnızca o cihazdaki işlemler burada görünür.</div>`;
         if (realActivityTimer) clearTimeout(realActivityTimer);
         realActivityTimer = setTimeout(refreshRealActivity, 5000);
         return;
@@ -1773,7 +1844,6 @@ async function refreshAgentBadge() {
 }
 
 function initExperienceUi() {
-    initPageRouter();
     renderLiveAlarms([]); renderInventory(); renderAudit(); renderTurnTests(); renderWizard(); refreshAgentBadge(); refreshRealActivity();
     $("demoModeBtn")?.addEventListener("click", () => setDemoMode(!window.GYMSOFT_DEMO_MODE));
     $("demoModeSwitch")?.addEventListener("change", e => setDemoMode(e.target.checked));
@@ -1814,6 +1884,7 @@ function initExperienceUi() {
     installDemoInterceptors();
 }
 
+initPageRouter();
 initExperienceUi();
 
 
