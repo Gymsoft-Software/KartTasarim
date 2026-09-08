@@ -50,7 +50,7 @@
             <a href="#settings" data-page-link="settings"><span>⚙</span><div><strong>Ayarlar</strong><small>Güvenlik & agent</small></div></a>
         </nav>
         <div class="sidebar-note">
-            <strong>GYMSOFT Manager v13.8.2.2</strong>
+            <strong>GYMSOFT Manager v13.8.3.2</strong>
             <span id="sidebarModeText">Gerçek cihaz modu</span>
             <span class="sidebar-agent" id="sidebarAgentText">Agent bekleniyor</span>
         </div>
@@ -94,7 +94,7 @@
                 <button type="button" id="quickOpenBtn" class="primary compact">Geçiş Ver</button>
                 <button type="button" id="quickKioskBtn" class="secondary compact">Kiosk Restart</button>
                 <button type="button" id="quickRebootBtn" class="danger compact">Reboot</button>
-                <span class="badge">v13.8.2 Power Monitor</span>
+                <span class="badge">v13.8.3 Power Monitor</span>
             </div>
         </header>
 
@@ -489,6 +489,42 @@
                         </div>
                     </div>
 
+
+                    <div class="designer-card designer-animation-card">
+                        <div class="designer-card-head">
+                            <div>
+                                <h3>Arka Plan Animasyonu</h3>
+                                <small>Varsayılan davranış: mevcut GirCik animasyonuna dokunma.</small>
+                            </div>
+                            <span id="gAnimationStateBadge" class="status success">VARSAYILAN · AÇIK</span>
+                        </div>
+
+                        <label><span>Animasyon Davranışı</span>
+                            <select id="gAnimationMode">
+                                <option value="keep">Varsayılan animasyonu koru</option>
+                                <option value="custom">Animasyonu açık tut · hızını ayarla</option>
+                                <option value="off">Animasyonu kapat</option>
+                            </select>
+                        </label>
+
+                        <div id="gAnimationSpeedWrap" class="animation-speed-control">
+                            <div class="range-label-row">
+                                <span>Animasyon Hızı</span>
+                                <strong id="gAnimationSpeedLabel">100% · Normal</strong>
+                            </div>
+                            <input id="gAnimationSpeed" type="range" min="25" max="200" step="5" value="100">
+                            <div class="range-scale">
+                                <span>25%<small>Çok yavaş</small></span>
+                                <span>100%<small>Normal</small></span>
+                                <span>200%<small>2× hızlı</small></span>
+                            </div>
+                        </div>
+
+                        <div id="gAnimationModeHelp" class="designer-help success">
+                            Mevcut animasyon olduğu gibi korunur. GirCik Designer animasyon katmanını değiştirmez.
+                        </div>
+                    </div>
+
                     <div class="designer-card">
                         <h3>QR Kod</h3>
                         <label><span>Boyut: <strong id="gQrSizeLabel">34%</strong></span><input id="gQrSize" type="range" min="15" max="70" value="34"></label>
@@ -545,30 +581,129 @@
                     <pre id="gircikOutput" class="tool-output">Henüz işlem yapılmadı.</pre>
                 </div>
 
+
                 <div class="gircik-preview-wrap">
                     <div class="gircik-preview-toolbar">
-                        <strong>Canlı Önizleme</strong>
-                        <select id="gPreviewSize">
-                            <option value="1280x720">1280×720</option>
-                            <option value="1024x768">1024×768</option>
-                            <option value="1920x1080">1920×1080</option>
-                        </select>
-                    </div>
-                    <div class="gircik-preview" id="gPreview">
-                        <div class="g-safe-label g-safe-top">ÜST GÜVENLİ ALAN</div>
-                        <div class="g-preview-top" id="gPreviewTop"></div>
-                        <div class="g-preview-main">
-                            <div class="g-preview-qr" id="gPreviewQr"><span>QR</span></div>
-                            <div class="g-preview-center" id="gPreviewCenter">Kartınızı Okutun</div>
-                            <div class="g-center-line">GEOMETRİK MERKEZ</div>
+                        <div>
+                            <strong>Detaylı Tasarım Önizlemesi</strong>
+                            <small>Yerleşim, güvenli alanlar ve animasyon davranışı</small>
                         </div>
-                        <div class="g-preview-bottom" id="gPreviewBottom"></div>
-                        <div class="g-safe-label g-safe-bottom">ALT GÜVENLİ ALAN</div>
+                        <div class="preview-toolbar-actions">
+                            <label class="preview-guide-toggle"><input id="gPreviewGuides" type="checkbox" checked> Kılavuzlar</label>
+                            <select id="gPreviewSize">
+                                <option value="1280x720">1280×720 · 16:9</option>
+                                <option value="1024x768">1024×768 · 4:3</option>
+                                <option value="1920x1080">1920×1080 · Full HD</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="info-box muted">
-                        Merkez çizgisi turnike ekranının geometrik merkezidir. QR kod dokunmasız ve sürekli görünür tutulur.
+
+                    <div class="preview-device-shell">
+                        <div class="preview-device-topbar">
+                            <span class="preview-camera-dot"></span>
+                            <strong id="gPreviewDeviceTitle">Turnike Ekranı · 1280×720</strong>
+                            <span class="preview-live-pill">CANLI TASLAK</span>
+                        </div>
+
+                        <div class="gircik-preview" id="gPreview">
+                            <div class="g-preview-animation" id="gPreviewAnimation">
+                                <span class="anim-orb orb-a"></span>
+                                <span class="anim-orb orb-b"></span>
+                                <span class="anim-grid"></span>
+                            </div>
+
+                            <div class="g-preview-zone-line g-zone-top-line"><span>ÜST ALAN</span></div>
+                            <div class="g-preview-zone-line g-zone-bottom-line"><span>ALT ALAN</span></div>
+                            <div class="g-safe-label g-safe-top">ÜST GÜVENLİ ALAN</div>
+
+                            <div class="g-preview-top" id="gPreviewTop">
+                                <span class="g-empty-zone">Üst alan boş</span>
+                            </div>
+
+                            <div class="g-preview-main">
+                                <div class="g-preview-qr" id="gPreviewQr" aria-label="QR önizleme">
+                                    <div class="g-qr-pattern"></div>
+                                    <span>QR</span>
+                                </div>
+                                <div class="g-preview-center" id="gPreviewCenter">Kartınızı Okutun</div>
+                                <div class="g-center-crosshair">
+                                    <span class="crosshair-h"></span>
+                                    <span class="crosshair-v"></span>
+                                    <em>GEOMETRİK MERKEZ</em>
+                                </div>
+                            </div>
+
+                            <div class="g-preview-bottom" id="gPreviewBottom">
+                                <span class="g-empty-zone">Alt alan boş</span>
+                            </div>
+                            <div class="g-safe-label g-safe-bottom">ALT GÜVENLİ ALAN</div>
+
+                            <div class="g-preview-badges">
+                                <span id="gPreviewResolutionBadge">1280×720</span>
+                                <span id="gPreviewAnimationBadge">Animasyon · Varsayılan</span>
+                                <span id="gPreviewQrBadge">QR · 34%</span>
+                            </div>
+                        </div>
+
+                        <div class="preview-device-foot">
+                            <span>Gymsoft GirCik</span>
+                            <span id="gPreviewAspectLabel">16:9</span>
+                        </div>
+                    </div>
+
+                    <div class="preview-inspector">
+                        <div class="preview-inspector-item">
+                            <small>Çözünürlük</small>
+                            <strong id="gDetailResolution">1280 × 720</strong>
+                        </div>
+                        <div class="preview-inspector-item">
+                            <small>QR Alanı</small>
+                            <strong id="gDetailQr">34% · ≈245 px</strong>
+                        </div>
+                        <div class="preview-inspector-item">
+                            <small>QR Konumu</small>
+                            <strong id="gDetailQrPosition">Üst</strong>
+                        </div>
+                        <div class="preview-inspector-item">
+                            <small>Merkez</small>
+                            <strong id="gDetailCenter">Yazı</strong>
+                        </div>
+                        <div class="preview-inspector-item">
+                            <small>Animasyon</small>
+                            <strong id="gDetailAnimation">Varsayılan · 100%</strong>
+                        </div>
+                        <div class="preview-inspector-item">
+                            <small>Üst / Alt</small>
+                            <strong id="gDetailZones">Boş / Boş</strong>
+                        </div>
+                    </div>
+
+                    <div class="info-box preview-note">
+                        <strong>Önemli:</strong> Varsayılan modda Raspberry'deki mevcut GirCik animasyonu aynen korunur.
+                        Bu önizlemedeki hareketli arka plan yalnızca animasyon davranışını görsel olarak temsil eder.
+                    </div>
+
+                    <div class="real-preview-panel">
+                        <div class="real-preview-head">
+                            <div>
+                                <strong>Gerçek Raspberry Önizlemesi</strong>
+                                <small>Uygulama sonrası gerçek HDMI görüntüsünü kontrol edin.</small>
+                            </div>
+                            <div class="tool-button-row">
+                                <select id="gRealPreviewOutput"><option value="__all__">Tüm Masaüstü</option></select>
+                                <button type="button" id="gRealPreviewBtn" class="secondary">Gerçek Ekranı Getir</button>
+                            </div>
+                        </div>
+                        <div class="real-preview-screen" id="gRealPreviewScreen">
+                            <img id="gRealPreviewImage" alt="Gerçek Raspberry ekran görüntüsü">
+                            <div id="gRealPreviewEmpty" class="real-preview-empty">
+                                <strong>Henüz gerçek ekran görüntüsü alınmadı.</strong>
+                                <small>Raspberry bağlıyken HDMI seçip “Gerçek Ekranı Getir” düğmesine basın.</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </section>
 
@@ -787,7 +922,7 @@
         <section class="panel app-page-section" id="diagnoseTools" data-page="diagnostics">
             <div class="section-title">
                 <div>
-                    <h2>Türkçe Sağlık / Arıza Sorgusu v13.8.2</h2>
+                    <h2>Türkçe Sağlık / Arıza Sorgusu v13.8.3</h2>
                     <p>Ham teknik değerlerin yanında “arıza var / olabilir / geçmişte olmuş / normal” şeklinde Türkçe anlam ve öneri verir.</p>
                 </div>
                 <span id="diagnoseState" class="status neutral">Hazır</span>
