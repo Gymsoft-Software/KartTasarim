@@ -2519,12 +2519,11 @@ $("diagnoseBtn")?.addEventListener("click",async()=>{
 
 /* GirCik designer */
 let v138GircikConfig=null;
-const gIds=["gBg","gTextColor","gAccent","gAnimationMode","gAnimationSpeed","gQrSize","gQrPosition","gCenterMode","gCenterText","gCenterLogoSize","gTopMode","gTopText","gTopSize","gBottomMode","gBottomText","gBottomSize"];
+const gIds=["gBg","gTextColor","gAccent","gQrSize","gQrPosition","gCenterMode","gCenterText","gCenterLogoSize","gTopMode","gTopText","gTopSize","gBottomMode","gBottomText","gBottomSize"];
 
 function v138ReadGircikForm(){
  return {
   backgroundColor:$("gBg").value,textColor:$("gTextColor").value,accentColor:$("gAccent").value,
-  animationMode:$("gAnimationMode").value,animationSpeedPercent:Number($("gAnimationSpeed").value),
   qrSizePercent:Number($("gQrSize").value),qrPosition:$("gQrPosition").value,
   centerMode:$("gCenterMode").value,centerText:$("gCenterText").value,centerLogo:v138GircikConfig?.centerLogo||"",centerLogoSizePercent:Number($("gCenterLogoSize").value),
   topMode:$("gTopMode").value,topText:$("gTopText").value,topImage:v138GircikConfig?.topImage||"",topSizePercent:Number($("gTopSize").value),
@@ -2534,107 +2533,27 @@ function v138ReadGircikForm(){
 function v138ApplyGircikForm(c){
  v138GircikConfig={...c};
  $("gBg").value=c.backgroundColor;$("gTextColor").value=c.textColor;$("gAccent").value=c.accentColor;
- $("gAnimationMode").value=c.animationMode||"keep";$("gAnimationSpeed").value=Number(c.animationSpeedPercent||100);
  $("gQrSize").value=c.qrSizePercent;$("gQrPosition").value=c.qrPosition;$("gCenterMode").value=c.centerMode;$("gCenterText").value=c.centerText||"";$("gCenterLogoSize").value=c.centerLogoSizePercent;
  $("gTopMode").value=c.topMode;$("gTopText").value=c.topText||"";$("gTopSize").value=c.topSizePercent;
  $("gBottomMode").value=c.bottomMode;$("gBottomText").value=c.bottomText||"";$("gBottomSize").value=c.bottomSizePercent;
  v138RenderPreview();
 }
-function v138AnimationSpeedText(value){
- const n=Number(value||100);
- if(n<50)return `${n}% · Çok yavaş`;
- if(n<90)return `${n}% · Yavaş`;
- if(n===100)return "100% · Normal";
- if(n<=125)return `${n}% · Hafif hızlı`;
- if(n<=160)return `${n}% · Hızlı`;
- return `${n}% · Çok hızlı`;
-}
-function v138AnimationModeText(mode,speed){
- if(mode==="off")return "Kapalı";
- if(mode==="custom")return `Özel hız · ${v138AnimationSpeedText(speed)}`;
- return "Varsayılan · Korunuyor";
-}
-function v138ZoneText(mode,text){
- if(mode==="text")return text?.trim()||"Yazı";
- if(mode==="image")return "Görsel";
- return "Boş";
-}
 function v138RenderPreview(){
  const c=v138ReadGircikForm(),p=$("gPreview"); if(!p)return;
- const size=($("gPreviewSize")?.value||"1280x720").split("x").map(Number);
- const width=size[0]||1280,height=size[1]||720;
- const ratio=width/height;
- const ratioLabel=Math.abs(ratio-(16/9))<.03?"16:9":Math.abs(ratio-(4/3))<.03?"4:3":`${ratio.toFixed(2)}:1`;
-
- p.style.background=c.backgroundColor;p.style.color=c.textColor;p.style.aspectRatio=`${width}/${height}`;
- $("gQrSizeLabel").textContent=c.qrSizePercent+"%";
- $("gCenterLogoSizeLabel").textContent=c.centerLogoSizePercent+"%";
- $("gTopSizeLabel").textContent=c.topSizePercent+"%";
- $("gBottomSizeLabel").textContent=c.bottomSizePercent+"%";
-
- const speedText=v138AnimationSpeedText(c.animationSpeedPercent);
- $("gAnimationSpeedLabel").textContent=speedText;
- const speedWrap=$("gAnimationSpeedWrap");
- speedWrap?.classList.toggle("is-disabled",c.animationMode!=="custom");
- const stateBadge=$("gAnimationStateBadge");
- const help=$("gAnimationModeHelp");
- if(c.animationMode==="keep"){
-   stateBadge.textContent="VARSAYILAN · AÇIK";stateBadge.className="status success";
-   help.className="designer-help success";
-   help.textContent="Mevcut GirCik animasyonu aynen korunur. Designer animasyonun CSS/JS katmanına müdahale etmez.";
- }else if(c.animationMode==="custom"){
-   stateBadge.textContent=`AÇIK · ${c.animationSpeedPercent}%`;stateBadge.className="status running";
-   help.className="designer-help warning";
-   help.textContent="CSS/Web Animations ve HTML5 video hızı ayarlanır. Özel canvas/requestAnimationFrame animasyonları güvenlik için zorla değiştirilmez.";
- }else{
-   stateBadge.textContent="KAPALI";stateBadge.className="status error";
-   help.className="designer-help error";
-   help.textContent="CSS animasyonları ve videolar durdurulur. Bu seçenek yalnızca özellikle animasyonsuz ekran istendiğinde kullanılmalıdır.";
- }
-
- const anim=$("gPreviewAnimation");
- anim?.classList.toggle("animation-off",c.animationMode==="off");
- if(anim){
-   const rate=c.animationMode==="custom"?Math.max(.25,Math.min(2,c.animationSpeedPercent/100)):1;
-   anim.querySelectorAll(".anim-orb").forEach(el=>el.style.animationDuration=`${8/rate}s`);
-   anim.querySelectorAll(".anim-grid").forEach(el=>el.style.animationDuration=`${14/rate}s`);
- }
-
- const qr=$("gPreviewQr");
- qr.style.width=Math.max(10,Math.min(52,c.qrSizePercent*.68))+"%";
- qr.style.top="";qr.style.bottom="";qr.style.transform="translateX(-50%)";
- if(c.qrPosition==="top")qr.style.top="4%";
- else if(c.qrPosition==="bottom")qr.style.bottom="4%";
- else{qr.style.top="50%";qr.style.transform="translate(-50%,-50%)";}
-
+ p.style.background=c.backgroundColor;p.style.color=c.textColor;
+ $("gQrSizeLabel").textContent=c.qrSizePercent+"%";$("gCenterLogoSizeLabel").textContent=c.centerLogoSizePercent+"%";$("gTopSizeLabel").textContent=c.topSizePercent+"%";$("gBottomSizeLabel").textContent=c.bottomSizePercent+"%";
+ const qr=$("gPreviewQr");qr.style.width=Math.max(12,Math.min(48,c.qrSizePercent*.62))+"%";qr.style.color=c.accentColor;qr.style.top="";qr.style.bottom="";qr.style.transform="translateX(-50%)";
+ if(c.qrPosition==="top")qr.style.top="4%";else if(c.qrPosition==="bottom")qr.style.bottom="4%";else{qr.style.top="50%";qr.style.transform="translate(-50%,-50%)";}
  const center=$("gPreviewCenter");
- if(c.centerMode==="none")center.innerHTML='<span class="g-empty-zone">Merkez içerik yok</span>';
+ if(c.centerMode==="none")center.innerHTML="";
  else if(c.centerMode==="logo"&&c.centerLogo)center.innerHTML=`<img src="${escapeHtml(c.centerLogo)}" style="max-width:${c.centerLogoSizePercent}%">`;
- else if(c.centerMode==="logo")center.innerHTML='<span class="g-empty-zone">Logo seçilecek</span>';
- else center.textContent=c.centerText||"";
-
+ else center.textContent=c.centerMode==="text"?c.centerText:"LOGO";
  const top=$("gPreviewTop"),bottom=$("gPreviewBottom");
- top.innerHTML=c.topMode==="text"&&c.topText?escapeHtml(c.topText):(c.topMode==="image"&&c.topImage?`<img class="g-preview-zone-image" src="${escapeHtml(c.topImage)}">`:'<span class="g-empty-zone">Üst alan boş</span>');
- bottom.innerHTML=c.bottomMode==="text"&&c.bottomText?escapeHtml(c.bottomText):(c.bottomMode==="image"&&c.bottomImage?`<img class="g-preview-zone-image" src="${escapeHtml(c.bottomImage)}">`:'<span class="g-empty-zone">Alt alan boş</span>');
-
- const qrPx=Math.round(Math.min(width,height)*(c.qrSizePercent/100));
- const posName={top:"Üst",center:"Merkez",bottom:"Alt"}[c.qrPosition]||c.qrPosition;
- const centerName={text:"Yazı",logo:"Logo",none:"Boş"}[c.centerMode]||c.centerMode;
- $("gPreviewDeviceTitle").textContent=`Turnike Ekranı · ${width}×${height}`;
- $("gPreviewResolutionBadge").textContent=`${width}×${height}`;
- $("gPreviewAnimationBadge").textContent=`Animasyon · ${v138AnimationModeText(c.animationMode,c.animationSpeedPercent)}`;
- $("gPreviewQrBadge").textContent=`QR · ${c.qrSizePercent}%`;
- $("gPreviewAspectLabel").textContent=ratioLabel;
- $("gDetailResolution").textContent=`${width} × ${height} · ${ratioLabel}`;
- $("gDetailQr").textContent=`${c.qrSizePercent}% · ≈${qrPx} px`;
- $("gDetailQrPosition").textContent=posName;
- $("gDetailCenter").textContent=centerName+(c.centerMode==="text"&&c.centerText?` · ${c.centerText.slice(0,22)}`:"");
- $("gDetailAnimation").textContent=v138AnimationModeText(c.animationMode,c.animationSpeedPercent);
- $("gDetailZones").textContent=`${v138ZoneText(c.topMode,c.topText)} / ${v138ZoneText(c.bottomMode,c.bottomText)}`;
+ top.innerHTML=c.topMode==="text"?escapeHtml(c.topText):(c.topMode==="image"&&c.topImage?`<img class="g-preview-zone-image" src="${escapeHtml(c.topImage)}">`:"");
+ bottom.innerHTML=c.bottomMode==="text"?escapeHtml(c.bottomText):(c.bottomMode==="image"&&c.bottomImage?`<img class="g-preview-zone-image" src="${escapeHtml(c.bottomImage)}">`:"");
 }
 gIds.forEach(id=>$(id)?.addEventListener("input",v138RenderPreview));
-$("gPreviewSize")?.addEventListener("change",v138RenderPreview);
-$("gPreviewGuides")?.addEventListener("change",e=>$("gPreview")?.classList.toggle("hide-guides",!e.target.checked));
+$("gPreviewSize")?.addEventListener("change",e=>{const [w,h]=e.target.value.split("x").map(Number);$("gPreview").style.aspectRatio=`${w}/${h}`;});
 
 function fileAsDataUrl(input){
  return new Promise((resolve,reject)=>{const f=input?.files?.[0];if(!f)return resolve("");if(f.size>3*1024*1024)return reject(new Error("Görsel 3 MB sınırını aşıyor."));const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(new Error("Görsel okunamadı."));r.readAsDataURL(f);});
@@ -2687,38 +2606,3 @@ $("gircikRestoreBtn")?.addEventListener("click",async()=>{
 
 /* Ekran & Donanım sayfası açılınca HDMI çıkışlarını otomatik keşfet. */
 document.querySelector('[data-page-link="hardware"]')?.addEventListener("click",()=>setTimeout(()=>v138LoadDisplays().catch(()=>{}),120));
-
-
-/* v13.8.3 — Real Raspberry preview inside GirCik Designer */
-async function v138FillRealPreviewOutputs(){
- try{
-   if(!v138Displays.length)await v138LoadDisplays();
-   const sel=$("gRealPreviewOutput");if(!sel)return;
-   const current=sel.value;
-   sel.innerHTML='<option value="__all__">Tüm Masaüstü</option>'+
-     v138Displays.filter(x=>x.connected).map(d=>`<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)} · ${escapeHtml(d.currentMode||"--")}</option>`).join("");
-   if([...sel.options].some(o=>o.value===current))sel.value=current;
- }catch(err){}
-}
-$("gRealPreviewOutput")?.addEventListener("focus",v138FillRealPreviewOutputs);
-$("gRealPreviewBtn")?.addEventListener("click",async()=>{
- const btn=$("gRealPreviewBtn");
- try{
-   const target=v138Target();btn.disabled=true;btn.textContent="Görüntü alınıyor…";
-   await v138FillRealPreviewOutputs();
-   const output=$("gRealPreviewOutput")?.value||"__all__";
-   const data=await api("/api/v13-8/screenshot",{method:"POST",body:JSON.stringify({...target,output})});
-   $("gRealPreviewImage").src=data.image;
-   $("gRealPreviewScreen").classList.add("has-image");
-   showToast(`${output==="__all__"?"Tüm masaüstü":output} görüntüsü alındı.`,"success","GirCik Önizleme");
- }catch(err){
-   showToast(err.message,"error","Gerçek Önizleme");
- }finally{
-   btn.disabled=false;btn.textContent="Gerçek Ekranı Getir";
- }
-});
-
-/* GirCik sekmesi açılırken detailed preview her zaman güncel olsun. */
-document.querySelector('[data-page-link="gircik"]')?.addEventListener("click",()=>{
- setTimeout(()=>{v138RenderPreview();v138FillRealPreviewOutputs();},100);
-});
