@@ -70,7 +70,7 @@ $('printArticle').addEventListener('click', () => window.print());
 async function init() {
   if (!repo.configured) {
     $('resultCount').textContent = 'İçerikler hazırlanıyor';
-    $('articleList').innerHTML = '<div class="empty-state"><span class="empty-icon" aria-hidden="true">✦</span><h3>Yardım merkezimiz hazırlanıyor</h3><p>Görselli rehberler ve video anlatımlar çok yakında burada olacak.</p><a class="button secondary" href="../">Uygulama merkezine dön</a></div>';
+    $('articleList').innerHTML = '<div class="empty-state"><span class="empty-icon" aria-hidden="true">✦</span><h3>Yardım merkezimiz hazırlanıyor</h3><p>Görselli rehberler ve video anlatımlar çok yakında burada olacak.</p></div>';
     $('search').disabled = true; $('searchForm').querySelector('button').disabled = true; $('sort').disabled = true;
     return;
   }

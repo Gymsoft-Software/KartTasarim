@@ -46,9 +46,12 @@ test('publish shows progress, reports server rejection and allows retry', async 
   expect(state.articles.find(article => article.slug === 'yayin-denemesi').status).toBe('published');
 });
 
-test('portal links to support; unconfigured admin fails closed', async ({page}) => {
+test('public root opens support without internal navigation; unconfigured admin fails closed', async ({page}) => {
   await page.route('**/Destek/config.js', route => route.fulfill({contentType:'text/javascript',body:'window.SUPPORT_CONFIG={};'}));
-  await page.goto('/'); await page.getByRole('link').filter({has:page.getByRole('heading',{name:'Yardım Merkezi',exact:true})}).click();
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/Destek\/$/);
+  await expect(page.getByRole('link', {name:/Uygulama Merkezi|Raspberry Manager/})).toHaveCount(0);
+  await expect(page.locator('a[href="../"], a[href*="RaspberryManager"], a[href*="uygulama-merkezi"]')).toHaveCount(0);
   await expect(page.getByText('Yardım merkezimiz hazırlanıyor')).toBeVisible();
   await page.getByRole('link',{name:'Yönetici girişi'}).click();
   await expect(page.locator('#setupNotice')).toBeVisible();

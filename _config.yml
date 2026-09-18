@@ -1,0 +1,18 @@
+# GitHub Pages publishes main / (root) using Jekyll.
+# Internal tools must never be copied into the public site.
+# Do not add .nojekyll or switch to an unfiltered repository upload.
+exclude:
+  - RaspberryManager
+  - uygulama-merkezi.html
+  - scripts
+  - tests
+  - node_modules
+  - test-results
+  - playwright-report
+  - playwright.config.js
+  - package.json
+  - package-lock.json
+  - README.md
+  - MerhabaDunya.txt
+  - Destek/src
+  - Destek/supabase
