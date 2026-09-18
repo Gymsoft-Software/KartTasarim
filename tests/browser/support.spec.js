@@ -1,6 +1,51 @@
 import { test, expect } from '@playwright/test';
 import { mockBackend, login, tinyPng, publicId, mockOrigin } from './fixtures.js';
 
+test('publish validation is visible and focused on mobile', async ({page}) => {
+  const state = await mockBackend(page);
+  await login(page);
+  await page.locator('#newArticle').click();
+  await page.setViewportSize({width:390,height:600});
+  await page.locator('[data-step="3"]').click();
+  await page.locator('#publishArticle').click();
+  await expect(page.locator('#editorStatus')).toContainText('Başlık');
+  await expect(page.locator('#editorStatus')).toBeInViewport();
+  await expect(page.locator('#editorStatus')).toBeFocused();
+  await expect(page.locator('#toast')).toContainText('Başlık');
+  await expect(page.locator('#publishArticle')).toBeEnabled();
+  expect(state.articles).toHaveLength(3);
+});
+
+test('publish shows progress, reports server rejection and allows retry', async ({page}) => {
+  const state = await mockBackend(page);
+  await login(page);
+  await page.locator('#newArticle').click();
+  await page.locator('#articleTitle').fill('Yayın denemesi');
+  await page.locator('#articleCategory').selectOption({label:'Hesap & Kullanıcı'});
+  await page.locator('[data-step="2"]').click();
+  await page.locator('.ql-editor').fill('Yayınlanacak açıklama.');
+  await page.locator('[data-step="3"]').click();
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  await page.route('**/rest/v1/support_articles*', async route => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    await pending;
+    await route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({code:'42501',message:'permission denied'})});
+  });
+  await page.locator('#publishArticle').click();
+  await expect(page.locator('#publishArticle')).toHaveText('Yayınlanıyor…');
+  await expect(page.locator('#publishArticle')).toBeDisabled();
+  release();
+  await expect(page.locator('#editorStatus')).toContainText('yönetici yetkisi');
+  await expect(page.locator('#editorStatus')).toBeInViewport();
+  await expect(page.locator('#publishArticle')).toBeEnabled();
+  expect(state.articles).toHaveLength(3);
+  await page.unroute('**/rest/v1/support_articles*');
+  await page.locator('#publishArticle').click();
+  await expect(page.locator('#editorStatus')).toContainText('Yazı yayınlandı');
+  expect(state.articles.find(article => article.slug === 'yayin-denemesi').status).toBe('published');
+});
+
 test('portal links to support; unconfigured admin fails closed', async ({page}) => {
   await page.route('**/Destek/config.js', route => route.fulfill({contentType:'text/javascript',body:'window.SUPPORT_CONFIG={};'}));
   await page.goto('/'); await page.getByRole('link').filter({has:page.getByRole('heading',{name:'Yardım Merkezi',exact:true})}).click();

@@ -163,19 +163,35 @@ function renderDashboard() {
 
 async function save(status) {
   if (saving) return;
+  const draftLabel = $('saveDraft').textContent;
+  $('editorStatus').setAttribute('tabindex', '-1');
   try {
     const data = rawArticle(); data.status = status;
     data.content_html = sanitizeContent(data.content_html); data.content_delta = canonicalDelta(data.content_delta);
     validateArticle(data);
     if (status === 'draft' && active.status === 'published' && !confirm('Bu yazı yayından kaldırılacak ve yalnızca size görünecek. Devam edilsin mi?')) return;
-    saving = true; setEditorBusy(true); message('editorStatus', 'Kaydediliyor…');
+    writeLocalDraft();
+    saving = true; setEditorBusy(true);
+    $('articleForm').setAttribute('aria-busy', 'true');
+    $(status === 'published' ? 'publishArticle' : 'saveDraft').textContent = status === 'published' ? 'Yayınlanıyor…' : 'Kaydediliyor…';
+    message('editorStatus', 'Kaydediliyor…');
     const saved = await repo.saveArticle(data, active.revision ?? null);
     active = saved; dirty = false; clearTimeout(localTimer); clearDraft();
     $('saveState').textContent = status === 'published' ? 'Yayında · değişiklikler kaydedildi' : 'Taslak sunucuya kaydedildi';
     message('editorStatus', status === 'published' ? 'Yazı yayınlandı. Müşterileriniz yardım merkezinden okuyabilir.' : 'Taslak kaydedildi. Müşterilere görünmez.');
     setStep(3); toast(status === 'published' ? 'Rehber yayınlandı.' : 'Taslak kaydedildi.');
-  } catch (error) { message('editorStatus', errorText(error), true); }
-  finally { saving = false; setEditorBusy(false); }
+  } catch (error) {
+    message('editorStatus', errorText(error), true);
+    toast(errorText(error));
+    $('editorStatus').scrollIntoView({ block: 'center' });
+    $('editorStatus').focus({ preventScroll: true });
+  }
+  finally {
+    saving = false; setEditorBusy(false);
+    $('articleForm').removeAttribute('aria-busy');
+    $('publishArticle').textContent = active?.status === 'published' ? 'Değişiklikleri yayınla →' : 'Yayınla →';
+    $('saveDraft').textContent = draftLabel;
+  }
 }
 function setEditorBusy(busy) {
   document.querySelectorAll('#editorView button, #editorView input, #editorView select, #editorView textarea').forEach(el => { el.disabled = busy; });
