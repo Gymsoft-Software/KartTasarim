@@ -1,0 +1,21 @@
+{
+  "name": "gymsoft-uygulama-merkezi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/serve.mjs",
+    "test": "node --test tests/core.test.mjs tests/database.test.mjs",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.116.0",
+    "dompurify": "3.4.15",
+    "quill": "2.0.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@playwright/test": "1.63.0",
+    "esbuild": "0.28.2"
+  }
+}

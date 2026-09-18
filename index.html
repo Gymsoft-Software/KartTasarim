@@ -1,105 +1,44 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0a0b0d" />
-  <title>Kart Tasarım Kataloğu</title>
-  <meta name="description" content="Gymsoft kart tasarımlarını modern bir katalog görünümünde sergileyen web sitesi." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/style.css" />
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#090a0d">
+<meta name="description" content="Gymsoft uygulama merkezi. Raspberry yönetimine, kart tasarımlarına ve yeni araçlara tek yerden ulaşın.">
+<title>Gymsoft | Uygulama Merkezi</title><link rel="stylesheet" href="assets/home.css">
 </head>
 <body>
-  <div class="ambient ambient-1"></div>
-  <div class="ambient ambient-2"></div>
-
-  <header class="site-header">
-    <a class="brand" href="#" aria-label="Ana sayfa">
-      <div class="brand-logo">
-        <img id="logoImage" src="assets/logo-placeholder.svg" alt="Firma logosu" />
-      </div>
-      <div class="brand-copy">
-        <strong>Kart Tasarım</strong>
-        <span>Premium katalog</span>
-      </div>
-    </a>
-
-    <div class="header-actions">
-      <button class="ghost-btn" id="refreshBtn" type="button" title="Kataloğu yenile">
-        <span class="icon">↻</span> Yenile
-      </button>
-      <a class="primary-btn" id="githubBtn" href="#" target="_blank" rel="noopener">GitHub Klasörü ↗</a>
-    </div>
-  </header>
-
-  <main>
-    <section class="hero">
-      <div class="hero-copy">
-        <div class="eyebrow"><span></span> GYMSOFT • KART KATALOĞU</div>
-        <h1>Kart tasarımlarını<br><em>tek yerde keşfet.</em></h1>
-        <p>GitHub'daki <b>KartKatalog</b> klasörüne eklenen tasarımlar otomatik olarak burada listelenir. Arama yapabilir, büyütebilir ve tasarımı doğrudan açabilirsin.</p>
-      </div>
-      <div class="hero-card">
-        <div class="hero-card-top">
-          <span class="pulse"></span>
-          <span>Canlı katalog</span>
-        </div>
-        <div class="hero-card-number" id="designCount">—</div>
-        <div class="hero-card-label">yayındaki tasarım</div>
-        <div class="mini-rule"></div>
-        <small>Önerilen kart ölçüsü: <b>525 × 824 px</b></small>
-      </div>
-    </section>
-
-    <section class="toolbar" aria-label="Katalog kontrolleri">
-      <div class="search-wrap">
-        <span>⌕</span>
-        <input id="searchInput" type="search" placeholder="Tasarım ara… örn. alpagu, ön, arka" autocomplete="off" />
-      </div>
-      <div class="view-info">
-        <span id="resultText">Tasarımlar yükleniyor…</span>
-      </div>
-    </section>
-
-    <section>
-      <div id="statusBox" class="status-box">GitHub klasörü kontrol ediliyor…</div>
-      <div id="gallery" class="gallery" aria-live="polite"></div>
-      <div id="emptyState" class="empty-state hidden">
-        <div class="empty-icon">◌</div>
-        <h3>Sonuç bulunamadı</h3>
-        <p>Arama kelimesini değiştirip tekrar deneyebilirsin.</p>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div>
-      <strong>Kart Tasarım Kataloğu</strong>
-      <span>Gymsoft için hazırlanmıştır.</span>
-    </div>
-    <span class="footer-note">GitHub klasöründeki PNG/JPG/WEBP dosyalarını otomatik listeler.</span>
-  </footer>
-
-  <dialog id="previewModal" class="preview-modal">
-    <button id="closeModal" class="modal-close" type="button" aria-label="Kapat">×</button>
-    <div class="modal-content">
-      <div class="modal-image-wrap">
-        <img id="modalImage" alt="Kart tasarımı önizleme" />
-      </div>
-      <div class="modal-meta">
-        <span class="modal-kicker">TASARIM ÖNİZLEME</span>
-        <h2 id="modalTitle"></h2>
-        <div class="modal-actions">
-          <a id="openOriginal" class="primary-btn" target="_blank" rel="noopener">Orijinali aç ↗</a>
-          <button id="copyName" class="ghost-btn" type="button">Dosya adını kopyala</button>
-        </div>
-      </div>
-    </div>
-  </dialog>
-
-  <script src="assets/config.js"></script>
-  <script src="assets/app.js"></script>
-</body>
-</html>
+<a class="skip-link" href="#uygulamalar">Uygulamalara geç</a>
+<header class="site-header"><a class="brand" href="./" aria-label="Gymsoft ana sayfa"><span class="brand-mark">G</span><span>GYMSOFT<small>Uygulama Merkezi</small></span></a><span class="header-note">İşinizi kolaylaştıran araçlar</span></header>
+<main>
+<section class="hero" aria-labelledby="hero-title">
+<div class="eyebrow"><span></span> GYMSOFT ÇALIŞMA ALANI</div>
+<h1 id="hero-title">Tüm araçlarınız.<br><em>Tek bir başlangıç.</em></h1>
+<p>Cihazlarınızı yönetin, kart tasarımlarını keşfedin.<br>İhtiyacınız olan uygulamayı seçerek devam edin.</p>
+<a class="hero-link" href="#uygulamalar">Uygulamaları keşfet <span aria-hidden="true">↓</span></a>
+<div class="hero-art" aria-hidden="true"><div class="orbit"></div><div class="orbit inner"></div><div class="art-core">G</div><span class="art-node node-one">⌘</span><span class="art-node node-two">▤</span></div>
+</section>
+<section class="applications" id="uygulamalar" aria-labelledby="apps-title">
+<div class="section-heading"><div><span class="eyebrow">UYGULAMALAR</span><h2 id="apps-title">Nereden başlamak istersiniz?</h2></div><span class="app-count">3 uygulama · yönetim, tasarım ve destek</span></div>
+<div class="app-grid">
+<!-- Yeni uygulamalar için bir app-card bağlantısı ekleyin ve uygulama sayısını güncelleyin. -->
+<a class="app-card" href="RaspberryManager/">
+<div class="card-top"><span class="app-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="8" y="8" width="16" height="16" rx="3"/><rect x="12" y="12" width="8" height="8" rx="1"/><path d="M12 3v5m8-5v5M12 24v5m8-5v5M3 12h5m-5 8h5m16-8h5m-5 8h5"/></svg></span><span class="category">CİHAZ YÖNETİMİ</span></div>
+<h3>Raspberry Manager</h3><p>Raspberry Pi ve turnikelerinizi yönetin. Kurulum, canlı durum ve bakım araçlarına ulaşın.</p>
+<div class="features"><span>Ağ & SSH</span><span>Kurulum</span><span>Canlı izleme</span></div>
+<div class="card-bottom"><span>Yönetim panelini aç <span aria-hidden="true">↗</span></span><small>Local Agent gerektirir</small></div>
+</a>
+<a class="app-card catalog-card" href="kart-tasarim.html">
+<div class="card-top"><span class="app-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="8" y="4" width="18" height="24" rx="3"/><path d="M8 9H6a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h3M12 20h10m-10 4h6"/><circle cx="17" cy="12" r="3"/></svg></span><span class="category">TASARIM KATALOĞU</span></div>
+<h3>Kart Tasarımı</h3><p>Kart tasarımlarını tek yerde keşfedin. Ön ve arka yüzleri inceleyin, görselleri tam boyutta açın.</p>
+<div class="features"><span>Tasarım arama</span><span>Önizleme</span><span>Görsel kataloğu</span></div>
+<div class="card-bottom"><span>Kataloğu keşfet <span aria-hidden="true">↗</span></span><small>Doğrudan erişim</small></div>
+</a>
+<a class="app-card support-card" href="Destek/">
+<div class="card-top"><span class="app-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 5h9a4 4 0 0 1 4 4v19a5 5 0 0 0-5-3H5zM18 9a4 4 0 0 1 4-4h5v20h-4a5 5 0 0 0-5 3"/><path d="M9 11h5m-5 5h5m8-5h2m-2 5h2"/></svg></span><span class="category">YARDIM & REHBERLER</span></div>
+<h3>Yardım Merkezi</h3><p>Aradığınız cevaba adım adım ulaşın. Görselli kullanım rehberlerini ve video anlatımları keşfedin.</p>
+<div class="features"><span>Kullanım rehberleri</span><span>Video anlatım</span><span>Sık sorulan sorular</span></div>
+<div class="card-bottom"><span>Rehberleri keşfet <span aria-hidden="true">↗</span></span><small>Müşteriler için</small></div>
+</a>
+<article class="coming-soon"><span class="plus" aria-hidden="true">+</span><div><h3>Yeni araçlara yer var.</h3><p>Geliştireceğimiz yeni uygulamalara da buradan ulaşabileceksiniz.</p></div><span class="soon-label">YAKINDA</span></article>
+</div></section></main>
+<footer><span><strong>GYMSOFT</strong> · Uygulama Merkezi</span><span>Yönetim ve tasarım, aynı yerde.</span></footer>
+</body></html>

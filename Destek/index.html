@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101214">
+  <meta name="description" content="Gymsoft yardım merkezi: görselli kullanım rehberleri, video anlatımlar ve sık sorulan sorular.">
+  <title>Gymsoft | Yardım Merkezi</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script><script type="module" src="assets/public.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">İçeriğe geç</a>
+  <header class="header"><div class="header-inner"><a class="brand" href="./"><span class="brand-mark">G</span><span>GYMSOFT<small>Yardım Merkezi</small></span></a><nav aria-label="Ana gezinme"><a href="../">← Uygulama Merkezi</a><a href="./" class="nav-active">Yardım & Rehberler</a></nav></div></header>
+  <main id="main" class="container">
+    <div id="listView">
+      <section class="help-hero"><span class="eyebrow"><i></i> HER ADIMDA YANINIZDAYIZ</span><h1>Nasıl yardımcı olabiliriz?</h1><p>Aradığınız cevaba ulaşın. Adım adım rehberler ve video anlatımlarla<br class="desktop-only"> Gymsoft'u daha kolay kullanın.</p><form id="searchForm" role="search" class="search-box"><span aria-hidden="true">⌕</span><label class="sr-only" for="search">Yardım yazılarında ara</label><input id="search" type="search" autocomplete="off" placeholder="Bir konu arayın… örn. şifre değiştirme"><button type="submit">Ara <span aria-hidden="true">→</span></button></form><div class="hero-hints"><span>Adım adım anlatım</span><span>Görselli rehberler</span><span>Video desteği</span></div></section>
+      <div class="help-layout"><aside class="category-sidebar"><span class="eyebrow">KONULAR</span><h2>Bir kategori seçin</h2><div id="categoryList" class="category-list"></div><div class="sidebar-note"><span aria-hidden="true">✦</span><strong>Doğru bilgi, tek yerde.</strong><p>Gymsoft ekibi tarafından hazırlanan güncel kullanım rehberleri.</p></div></aside><section class="articles-section" aria-labelledby="listTitle"><div class="section-heading"><div><h2 id="listTitle">Tüm rehberler</h2><p id="resultCount" aria-live="polite">Yazılar yükleniyor…</p></div><label class="sort-label"><span class="sr-only">Sıralama</span><select id="sort"><option value="newest">Öne çıkan & yeni</option><option value="title">Başlığa göre A–Z</option></select></label></div><div id="articleList" class="article-list" aria-live="polite"><div class="empty-state">Rehberler yükleniyor…</div></div><div class="pagination" id="pagination"></div></section></div>
+    </div>
+    <div id="articleView" hidden><nav class="breadcrumb" aria-label="İçerik yolu"><a href="./">Yardım Merkezi</a><span aria-hidden="true">/</span><span id="breadcrumbTitle"></span></nav><div class="reading-layout"><article id="articleContent" class="reading-card"></article><aside class="reading-sidebar"><div class="toc-box"><span class="eyebrow">BU REHBERDE</span><nav id="toc" aria-label="İçindekiler"></nav></div><button id="copyArticle" class="button secondary" type="button">Bağlantıyı kopyala ↗</button><button id="printArticle" class="button subtle" type="button">Yazdır</button><a href="./" class="back-link">← Tüm rehberlere dön</a></aside></div><section class="related-section" id="relatedSection" hidden><h2>İlgili rehberler</h2><div id="relatedArticles" class="article-list"></div></section></div>
+    <noscript><div class="notice">Rehberleri görüntülemek için tarayıcınızda JavaScript'i etkinleştirin.</div></noscript>
+  </main>
+  <footer class="footer"><div><strong>GYMSOFT</strong><span>Birlikte, daha kolay.</span></div><a href="admin.html">Yönetici girişi ↗</a></footer>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body></html>

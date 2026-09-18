@@ -1,6 +1,23 @@
-# Kart Tasarım Kataloğu
+# Gymsoft Uygulama Merkezi
 
-Modern, responsive ve GitHub klasöründen otomatik görsel çeken kart katalog sitesi.
+Gymsoft uygulamalarına tek sayfadan erişim sağlayan statik web sitesi.
+
+## Sayfalar
+
+- `index.html`: Uygulama merkezi / ana sayfa.
+- `kart-tasarim.html`: GitHub klasöründen otomatik görsel çeken kart tasarım kataloğu.
+- `RaspberryManager/index.html`: Yerel GymsoftAgent üzerinden Raspberry ve turnike yönetimi.
+- `Destek/index.html`: Müşterilere açık, kategori ve arama destekli yardım merkezi.
+- `Destek/admin.html`: Tek yönetici hesabıyla yazı, görsel ve kategori yönetimi.
+
+Yardım merkezinin Supabase kurulumu, yönetici ataması ve yayınlama adımları: [Destek kurulum kılavuzu](Destek/README.md).
+Yardım merkezi paketlerini geliştirmek için Node.js 24 LTS ile `npm ci`, `npm run build` ve `npm run dev` kullanılır. Derlenmiş `Destek/assets` dosyaları repoya dahildir; GitHub Pages ek bir build adımı gerektirmez.
+
+Her iki uygulamadaki sol üst marka bağlantısı ana sayfaya döner. Raspberry Manager, Local Agent çalışırken kullanılabilir.
+
+## Yeni uygulama ekleme
+
+Yeni uygulamanın sayfasını veya klasörünü oluşturun. `index.html` içindeki `app-grid` alanına mevcut `app-card` bağlantılarından birini kopyalayın; bağlantıyı, başlığı ve açıklamayı güncelleyin. Aynı sayfadaki uygulama sayısını da değiştirin. Ana sayfanın stilleri `assets/home.css` dosyasındadır; build adımı gerektirmez.
 
 ## GitHub ayarı
 
