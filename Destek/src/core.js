@@ -4,6 +4,13 @@ export function slugify(value) {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100).replace(/-$/, '');
 }
 
+export const DEFAULT_IMAGE_WIDTH = '50%';
+export function imageWidth(value) {
+  const match = /^(\d{1,3})%$/.exec(String(value ?? ''));
+  return match && Number(match[1]) >= 10 && Number(match[1]) <= 100
+    ? `${Number(match[1])}%` : DEFAULT_IMAGE_WIDTH;
+}
+
 export function youtubeId(value) {
   if (!value?.trim()) return null;
   try {

@@ -1,12 +1,14 @@
 import Quill from 'quill';
+import './image-format.js';
 import * as repo from './repository.js';
-import { slugify, validateArticle, escapeHtml as esc, filterArticles, dateLabel, youtubeId, readingMinutes } from './core.js';
+import { slugify, validateArticle, escapeHtml as esc, filterArticles, dateLabel, youtubeId, readingMinutes, imageWidth } from './core.js';
 import { sanitizeContent, hydrateContent, canonicalDelta, hydrateDelta, articleMarkup } from './content.js';
 
 const $ = id => document.getElementById(id);
 let user = null, allArticles = [], categories = [], editor = null;
 let active = null, step = 1, dirty = false, saving = false, slugEdited = false;
 let localTimer, toastTimer, pendingFile = null, imageSelection = 0, editorRequest = 0;
+let selectedImage = null;
 let recoveryMode = new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery';
 const views = ['loginView', 'dashboardView', 'editorView', 'recoveryView'];
 function showView(id) { views.forEach(view => { $(view).hidden = view !== id; }); }
@@ -27,7 +29,7 @@ function setupEditor() {
   if (editor) return;
   editor = new Quill('#richEditor', {
     theme: 'snow', placeholder: 'Önce ne yapılması gerektiğini anlatın…',
-    formats: ['header','bold','italic','underline','strike','list','blockquote','code-block','link','image','alt','align','indent'],
+    formats: ['header','bold','italic','underline','strike','list','blockquote','code-block','link','image','alt','width','align','indent'],
     modules: { toolbar: {
       container: [[{ header: [2,3,false] }], ['bold','italic','underline','strike'], [{ list: 'ordered' }, { list: 'bullet' }], [{ align: [] }], ['blockquote','code-block'], ['link','image'], ['clean']],
       handlers: { image: () => chooseImage() },
@@ -43,7 +45,13 @@ function setupEditor() {
     }
   }, true);
   editor.root.addEventListener('drop', event => { if (event.dataTransfer?.files.length) { event.preventDefault(); toast('Görselleri Görsel ekle düğmesiyle yükleyin.'); } });
-  editor.on('text-change', () => markDirty());
+  editor.root.addEventListener('click', event => selectImage(event.target.closest('img')));
+  editor.on('selection-change', range => {
+    if (!range) return; // Keep the selection while the size controls have focus.
+    const [leaf] = editor.getLeaf(range.index);
+    selectImage(range.length === 1 && leaf?.domNode?.tagName === 'IMG' ? leaf.domNode : null);
+  });
+  editor.on('text-change', () => { markDirty(); syncImageControls(); });
   const labels = { bold:'Kalın', italic:'İtalik', underline:'Altı çizili', strike:'Üstü çizili', blockquote:'Alıntı', 'code-block':'Kod bloğu', link:'Bağlantı ekle', image:'Görsel ekle', clean:'Biçimlendirmeyi temizle' };
   document.querySelectorAll('.ql-toolbar button').forEach(button => {
     const name = [...button.classList].find(x => x.startsWith('ql-'))?.slice(3);
@@ -51,6 +59,36 @@ function setupEditor() {
     button.title = label; button.setAttribute('aria-label', label);
   });
 }
+
+function selectImage(image) {
+  selectedImage?.classList.remove('selected-image');
+  selectedImage = image && editor.root.contains(image) ? image : null;
+  selectedImage?.classList.add('selected-image');
+  syncImageControls();
+}
+function syncImageControls() {
+  if (selectedImage && !editor.root.contains(selectedImage)) selectedImage = null;
+  const width = imageWidth(selectedImage?.getAttribute('width'));
+  $('imageWidth').value = Number.parseInt(width, 10);
+  $('imageWidthValue').textContent = selectedImage ? `%${Number.parseInt(width, 10)}` : '—';
+  $('imageSizeHint').textContent = selectedImage ? 'Yazı alanına göre genişlik. En-boy oranı korunur.' : 'Boyutlandırmak için yazıdaki bir görsele tıklayın.';
+  document.querySelectorAll('#imageSizeControls input, #imageSizeControls button').forEach(control => { control.disabled = !selectedImage || saving; });
+  document.querySelectorAll('[data-image-width]').forEach(button => button.setAttribute('aria-pressed', String(Boolean(selectedImage) && button.dataset.imageWidth === width)));
+}
+function resizeSelectedImage(width) {
+  if (saving || !selectedImage || !editor.root.contains(selectedImage)) return;
+  const blot = Quill.find(selectedImage);
+  if (!blot) return;
+  editor.formatText(editor.getIndex(blot), 1, 'width', imageWidth(width), 'user');
+  syncImageControls();
+}
+$('imageWidth').addEventListener('input', event => resizeSelectedImage(`${event.target.value}%`));
+$('imageSizeControls').addEventListener('click', event => {
+  const button = event.target.closest('[data-image-width]');
+  if (button) { editor.history.cutoff(); resizeSelectedImage(button.dataset.imageWidth); editor.history.cutoff(); }
+});
+$('imageWidth').addEventListener('pointerdown', () => editor?.history.cutoff());
+$('imageWidth').addEventListener('change', () => editor?.history.cutoff());
 
 function rawArticle() {
   return {
@@ -102,7 +140,7 @@ async function openEditor(data = null, restoring = false) {
   $('articleTitle').value = draft.title; $('articleSlug').value = draft.slug;
   $('articleSummary').value = draft.summary || ''; $('articleTags').value = (draft.tags || []).join(', ');
   $('youtubeUrl').value = draft.youtube_url || ''; $('articlePinned').checked = Boolean(draft.pinned);
-  fillCategorySelect(draft.category_id); editor.setContents(delta, 'silent'); editor.history.clear();
+  fillCategorySelect(draft.category_id); editor.setContents(delta, 'silent'); editor.history.clear(); selectImage(null);
   active = { ...draft }; dirty = restoring; slugEdited = Boolean(draft.slug);
   $('editorHeading').textContent = draft.revision ? 'Rehberinizi düzenleyin.' : 'Yeni bir rehber hazırlayın.';
   $('saveState').textContent = restoring ? 'Oturum yedeği geri yüklendi · henüz kaydedilmedi' : draft.revision ? 'Sunucudaki sürüm açıldı' : 'Yeni yazı';
@@ -142,6 +180,7 @@ async function save(status) {
 function setEditorBusy(busy) {
   document.querySelectorAll('#editorView button, #editorView input, #editorView select, #editorView textarea').forEach(el => { el.disabled = busy; });
   editor?.enable(!busy); if (!busy) $('previousStep').disabled = step === 1;
+  syncImageControls();
 }
 async function leaveEditor() {
   if (saving) return;
@@ -171,6 +210,7 @@ $('imageForm').addEventListener('submit', async event => {
     editor.insertEmbed(targetPosition, 'image', result.url, 'user');
     editor.formatText(targetPosition, 1, 'alt', alt, 'user');
     editor.insertText(targetPosition + 1, '\n', 'user'); editor.setSelection(targetPosition + 2, 0);
+    selectImage([...editor.root.querySelectorAll('img')].find(image => image.src === result.url));
     $('imageDialog').close(); pendingFile = null; markDirty(); toast('Görsel yazıya eklendi.');
   } catch (error) { message('imageStatus', errorText(error), true); }
   finally { $('uploadImage').disabled = false; }

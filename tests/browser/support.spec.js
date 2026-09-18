@@ -1,12 +1,73 @@
 import { test, expect } from '@playwright/test';
-import { mockBackend, login, tinyPng, publicId } from './fixtures.js';
+import { mockBackend, login, tinyPng, publicId, mockOrigin } from './fixtures.js';
 
 test('portal links to support; unconfigured admin fails closed', async ({page}) => {
+  await page.route('**/Destek/config.js', route => route.fulfill({contentType:'text/javascript',body:'window.SUPPORT_CONFIG={};'}));
   await page.goto('/'); await page.getByRole('link').filter({has:page.getByRole('heading',{name:'Yardım Merkezi',exact:true})}).click();
   await expect(page.getByText('Yardım merkezimiz hazırlanıyor')).toBeVisible();
   await page.getByRole('link',{name:'Yönetici girişi'}).click();
   await expect(page.locator('#setupNotice')).toBeVisible();
   await expect(page.getByRole('button',{name:'Giriş yap →',exact:true})).toBeDisabled();
+});
+
+test('image percentage survives undo, preview, saving, reopening and mobile reading', async ({page}) => {
+  const state = await mockBackend(page);
+  const imageUrl = `${mockOrigin}/storage/v1/object/authenticated/support-media/${publicId}/dddddddd-dddd-4ddd-8ddd-dddddddddddd.png`;
+  state.articles[0].content_delta = {ops:[{insert:'Adımlar\n'}, {insert:{image:imageUrl},attributes:{alt:'Birinci görsel'}}, {insert:'\nİkinci adım\n'}, {insert:{image:imageUrl},attributes:{alt:'İkinci görsel'}}, {insert:'\n'}]};
+  const rectangle = await page.evaluate(() => { const canvas=document.createElement('canvas'); canvas.width=600;canvas.height=300;canvas.getContext('2d').fillRect(0,0,600,300);return canvas.toDataURL().split(',')[1]; });
+  await page.route('**/storage/v1/object/sign/support-media/**', route => route.request().method()==='GET' ? route.fulfill({contentType:'image/png',body:Buffer.from(rectangle,'base64')}) : route.fallback());
+  await login(page);
+  await page.getByRole('button',{name:'Kullanıcı adı ve şifre nasıl değiştirilir? yazısını düzenle',exact:true}).click();
+  await page.getByRole('button',{name:'Devam et →',exact:true}).click();
+  const first = page.locator('.ql-editor img').first();
+  await expect(first).toHaveAttribute('width','50%');
+  await first.click(); await expect(page.locator('#imageWidth')).toBeEnabled();
+  await page.getByRole('button',{name:'%25',exact:true}).click();
+  await expect(first).toHaveAttribute('width','25%');
+  await page.locator('.ql-editor').press('ControlOrMeta+z');
+  await expect(first).toHaveAttribute('width','50%');
+  await first.click(); await page.getByRole('button',{name:'%25',exact:true}).click();
+  await page.locator('#imageWidth').focus();
+  for (let i=0;i<12;i++) await page.locator('#imageWidth').press('ArrowRight');
+  await expect(first).toHaveAttribute('width','37%');
+  await page.getByRole('button',{name:'%25',exact:true}).click();
+  await expect(page.locator('.ql-editor img').nth(1)).toHaveAttribute('width','50%');
+  await page.getByRole('button',{name:'Önizleme ↗',exact:true}).click();
+  const preview = page.locator('#previewContent img').first();
+  await expect(preview).toHaveAttribute('width','25%');
+  expect(await preview.evaluate(img=>img.getBoundingClientRect().width/img.parentElement.getBoundingClientRect().width)).toBeCloseTo(.25,2);
+  await page.getByRole('button',{name:'Kapat',exact:true}).click();
+  await page.getByRole('button',{name:'Devam et →',exact:true}).click();
+  await page.getByRole('button',{name:'Değişiklikleri yayınla →',exact:true}).click();
+  await expect(page.locator('#editorStatus')).toContainText('Yazı yayınlandı');
+  const saved = state.articles[0];
+  expect(saved.content_delta.ops.find(op=>op.insert?.image).attributes.width).toBe('25%');
+  expect(saved.content_html).toContain('width="25%"');
+  await page.getByRole('button',{name:'← Yazılara dön',exact:true}).click();
+  await page.getByRole('button',{name:'Kullanıcı adı ve şifre nasıl değiştirilir? yazısını düzenle',exact:true}).click();
+  await page.getByRole('button',{name:'Devam et →',exact:true}).click();
+  await expect(first).toHaveAttribute('width','25%');
+  await page.goto('/Destek/?yazi=kullanici-adi-ve-sifre');
+  for (const viewport of [{width:1440,height:1080},{width:390,height:844}]) {
+    await page.setViewportSize(viewport);
+    const image=page.locator('.article-body img').first();
+    await expect(image).toHaveAttribute('width','25%');
+    await expect.poll(()=>image.evaluate(img=>img.naturalWidth)).toBe(600);
+    const size=await image.evaluate(img=>({ratio:img.getBoundingClientRect().width/img.parentElement.getBoundingClientRect().width,aspect:img.getBoundingClientRect().width/img.getBoundingClientRect().height}));
+    expect(size.ratio).toBeCloseTo(.25,2); expect(Math.abs(size.aspect-2)).toBeLessThan(.08);
+  }
+});
+
+test('legacy image widths and unsafe style attributes normalize to a safe percentage', async ({page}) => {
+  const state=await mockBackend(page);
+  state.articles[0].content_html=state.articles[0].content_html.replace('<img ', '<img width="900px" height="1" style="position:fixed;width:900px" onload="window.pwned=1" ');
+  await page.goto('/Destek/?yazi=kullanici-adi-ve-sifre');
+  const image=page.locator('.article-body img');
+  await expect(image).toHaveAttribute('width','50%');
+  await expect(image).toHaveAttribute('style','width: 50%;');
+  await expect(image).not.toHaveAttribute('height');
+  await expect(image).not.toHaveAttribute('onload');
+  expect(await page.evaluate(()=>window.pwned)).toBeUndefined();
 });
 test('search, category, video-first article and mobile layout', async ({page}) => {
   await mockBackend(page);

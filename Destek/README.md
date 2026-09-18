@@ -8,6 +8,7 @@ Müşteriler giriş yapmadan yayınlanan rehberleri okur. Yorum, müşteri kayd�
 - Paylaşılabilir adresler: `Destek/?yazi=kullanici-adi-ve-sifre-degistirme`.
 - Sayfanın üstünde YouTube videosu; altında adımlar ve görseller.
 - Quill editörü: kalın, italik, altı/üstü çizili, başlık, listeler, hizalama, alıntı, kod, bağlantı, görsel.
+- Görsele tıklayıp genişliğini %10–%100 arasında ayarlayın; %25/%50/%75/%100 kısayolları vardır. Oran yazı alanının genişliğine göredir ve en-boy oranı korunur. Yeni görseller ve daha önce boyutu belirlenmemiş görseller varsayılan olarak %50 genişlikte gösterilir. Ayar taslakta, önizlemede ve yayında korunur.
 - Üç adımlı yazı hazırlama, önizleme, taslak/yayın, düzenleme ve silme.
 - Eşzamanlı düzenlemelerde sürüm kontrolü: eski pencere yeni değişikliklerin üstüne yazamaz.
 - Sekme açık kaldığı sürece sessionStorage'da kurtarma kopyası. Bu, sunucuya kaydetmenin yerine geçmez; sekme kapanınca kaybolabilir.

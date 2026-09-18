@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { slugify, youtubeId, filterArticles, validateArticle } from '../Destek/src/core.js';
+import { slugify, youtubeId, filterArticles, validateArticle, imageWidth } from '../Destek/src/core.js';
+
+test('Image widths accept only bounded percentages, not pixel sizes or injected styles', () => {
+  for (const width of ['10%', '25%', '37%', '50%', '75%', '100%']) assert.equal(imageWidth(width), width);
+  for (const width of [null, '', 400, '400px', '400', '0%', '9%', '101%', '-25%', '50%;height:1px', '100% onload=alert(1)']) assert.equal(imageWidth(width), '50%');
+});
 
 test('Turkish titles produce stable shareable slugs', () => {
   assert.equal(slugify('Kullanıcı Adı ve ŞİFRE nasıl değiştirilir?'), 'kullanici-adi-ve-sifre-nasil-degistirilir');

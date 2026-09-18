@@ -1,11 +1,11 @@
 import DOMPurify from 'dompurify';
 import { mediaPath, signMedia, canonicalMedia } from './repository.js';
-import { youtubeId, escapeHtml, readingMinutes, dateLabel } from './core.js';
+import { youtubeId, escapeHtml, readingMinutes, dateLabel, imageWidth } from './core.js';
 
 export function sanitizeContent(html) {
   const clean = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['p','br','strong','b','em','i','u','s','h2','h3','h4','ol','ul','li','blockquote','pre','code','a','img','span','sub','sup'],
-    ALLOWED_ATTR: ['href','src','alt','class','data-list'], ALLOW_DATA_ATTR: false,
+    ALLOWED_ATTR: ['href','src','alt','class','data-list','width'], ALLOW_DATA_ATTR: false,
   });
   const template = document.createElement('template');
   template.innerHTML = clean;
@@ -21,6 +21,10 @@ export function sanitizeContent(html) {
     const path = mediaPath(img.getAttribute('src'));
     if (!path) { img.remove(); return; }
     img.src = canonicalMedia(path); img.alt = img.alt || 'Anlatım görseli';
+    const width = imageWidth(img.getAttribute('width'));
+    img.setAttribute('width', width);
+    // Rebuild only the validated percentage; arbitrary inline styles remain forbidden.
+    img.style.width = width;
     img.loading = 'lazy'; img.decoding = 'async';
   });
   return template.innerHTML;
@@ -52,7 +56,7 @@ export function canonicalDelta(delta) {
     if (!op.insert?.image) return op;
     const path = mediaPath(op.insert.image);
     if (!path) throw new Error('Görselleri editörün Görsel Ekle düğmesiyle yükleyin. Dışarıdan yapıştırılan görselleri kaldırın.');
-    return { ...op, insert: { image: canonicalMedia(path) } };
+    return { ...op, attributes: imageAttributes(op.attributes), insert: { image: canonicalMedia(path) } };
   }) };
 }
 
@@ -62,6 +66,10 @@ export async function hydrateDelta(delta) {
   return { ops: ops.map(op => {
     if (!op.insert?.image) return op;
     const path = mediaPath(op.insert.image);
-    return signed[path] ? { ...op, insert: { image: signed[path] } } : { insert: '[Görsel yüklenemedi]\n' };
+    return signed[path] ? { ...op, attributes: imageAttributes(op.attributes), insert: { image: signed[path] } } : { insert: '[Görsel yüklenemedi]\n' };
   }) };
+}
+
+function imageAttributes(attributes = {}) {
+  return { ...(attributes.alt ? { alt: attributes.alt } : {}), width: imageWidth(attributes.width) };
 }
