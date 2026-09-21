@@ -2,6 +2,8 @@
 
 Müşterilere açık yardım sitesi ve yönetici girişli Raspberry Manager.
 
+Ekran görüntüleriyle kart kataloğu kullanımı: [Kart Tasarım Kullanım Rehberi](KART_TASARIM_REHBERI.md).
+
 ## Sayfalar
 
 - `index.html`: Müşterileri Yardım Merkezi'ne yönlendirir.
