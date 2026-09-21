@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, readFile } from 'node:fs/promises';
 import { mockBackend, login, mockOrigin } from '../tests/browser/fixtures.js';
 
-const output = 'Destek/rehber-gorselleri';
+const output = 'docs/yardim-merkezi/gorseller';
 await mkdir(output, { recursive: true });
 const server = spawn(process.execPath, ['scripts/serve.mjs'], { stdio: 'ignore', windowsHide: true });
 let browser;

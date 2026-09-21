@@ -12,6 +12,7 @@ exclude:
   - package.json
   - package-lock.json
   - README.md
-  - MerhabaDunya.txt
+  - docs/arsiv
+  - docs/raspberry-manager/arsiv
   - Destek/src
   - Destek/supabase

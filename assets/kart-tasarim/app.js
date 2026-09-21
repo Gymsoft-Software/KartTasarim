@@ -117,7 +117,7 @@
       allItems = [];
       designCount.textContent = '0';
       resultText.textContent = 'Katalog yüklenemedi';
-      showStatus('Katalog GitHub üzerinden yüklenemedi. assets/config.js içindeki owner, repo, folder ve branch bilgilerini kontrol et. Repo private ise GitHub Pages tarayıcıdan API erişimi için uygun olmayabilir.', true);
+      showStatus('Katalog GitHub üzerinden yüklenemedi. assets/kart-tasarim/config.js içindeki owner, repo, folder ve branch bilgilerini kontrol et. Repo private ise GitHub Pages tarayıcıdan API erişimi için uygun olmayabilir.', true);
     } finally {
       refreshBtn.disabled = false;
     }

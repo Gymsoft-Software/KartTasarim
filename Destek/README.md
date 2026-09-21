@@ -2,7 +2,7 @@
 
 Müşteriler giriş yapmadan yayınlanan rehberleri okur. Yorum, müşteri kaydı veya müşteri konu açma özelliği yoktur. İçerikleri yalnızca atanmış tek yönetici hesabı yönetir.
 
-Ekran görüntüleriyle günlük kullanım: [Forum / Yardım Merkezi Kullanım Rehberi](KULLANIM_REHBERI.md).
+Ekran görüntüleriyle günlük kullanım: [Forum / Yardım Merkezi Kullanım Rehberi](../docs/yardim-merkezi/KULLANIM_REHBERI.md).
 
 ## Özellikler
 

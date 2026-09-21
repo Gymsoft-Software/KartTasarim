@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "node scripts/serve.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
     "test": "node --test tests/core.test.mjs tests/database.test.mjs",
     "test:e2e": "playwright test"
   },
