@@ -767,6 +767,7 @@ button.demo-active { border-color:var(--yellow) !important; background:rgba(242,
 /* ========================================================================== 
    v13 — Secure access gate + Agent download experience
    ========================================================================== */
+body.manager-locked > :not(#managerLoginGate) { display:none !important; }
 body.auth-locked { overflow: hidden; }
 body.auth-locked > .github-agent-banner,
 body.auth-locked > .shell,

@@ -1,9 +1,8 @@
 # GitHub Pages publishes main / (root) using Jekyll.
-# Internal tools must never be copied into the public site.
+# Raspberry Manager uses the same Supabase administrator login as the help center.
 # Do not add .nojekyll or switch to an unfiltered repository upload.
 exclude:
-  - RaspberryManager
-  - uygulama-merkezi.html
+  - RaspberryManager/src
   - scripts
   - tests
   - node_modules

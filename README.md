@@ -1,26 +1,28 @@
 # Gymsoft Uygulama Merkezi
 
-Müşterilere açık yardım sitesi ve yalnızca yerelde kullanılan uygulama merkezi.
+Müşterilere açık yardım sitesi ve yönetici girişli Raspberry Manager.
 
 ## Sayfalar
 
 - `index.html`: Müşterileri Yardım Merkezi'ne yönlendirir.
-- `uygulama-merkezi.html`: Yerel uygulama merkezi; GitHub Pages'te yayınlanmaz.
+- `uygulama-merkezi.html`: Uygulama merkezi; Raspberry Manager giriş ekranına bağlantı içerir.
 - `kart-tasarim.html`: GitHub klasöründen otomatik görsel çeken kart tasarım kataloğu.
-- `RaspberryManager/index.html`: Yerel GymsoftAgent üzerinden Raspberry ve turnike yönetimi; klasörün tamamı GitHub Pages yayınından çıkarılır.
+- `RaspberryManager/index.html`: Yardım Merkezi ile aynı Supabase yönetici hesabını kullanan Raspberry ve turnike yönetimi.
 - `Destek/index.html`: Müşterilere açık, kategori ve arama destekli yardım merkezi.
 - `Destek/admin.html`: Tek yönetici hesabıyla yazı, görsel ve kategori yönetimi.
 
 Yardım merkezinin Supabase kurulumu, yönetici ataması ve yayınlama adımları: [Destek kurulum kılavuzu](Destek/README.md).
 Yardım merkezi paketlerini geliştirmek için Node.js 24 LTS ile `npm ci`, `npm run build` ve `npm run dev` kullanılır. Derlenmiş `Destek/assets` dosyaları repoya dahildir; GitHub Pages ek bir build adımı gerektirmez.
 
-Yardım Merkezi'nde uygulama merkezine bağlantı bulunmaz. Raspberry Manager'ı kullanmak için `npm run dev` çalıştırıp `http://127.0.0.1:4173/uygulama-merkezi.html` adresini açın. Local Agent da çalışıyor olmalıdır. Geliştirme sunucusu yalnızca `127.0.0.1` üzerinde dinler.
+Yardım Merkezi'nde uygulama merkezine bağlantı bulunmaz. Raspberry Manager adresi: `https://gymsoft-software.github.io/KartTasarim/RaspberryManager/`. Yardım Merkezi için Supabase Authentication'da oluşturduğunuz e-posta ve parolayla giriş yapın. Hesabın mevcut `support_is_admin` kontrolünden geçmesi gerekir; yeni hesap veya parola oluşturulmaz.
 
-## Yayın sınırı
+Yerelde `npm run dev` ardından `http://127.0.0.1:4173/RaspberryManager/` adresini kullanabilirsiniz. Agent çalışmıyorsa indirme ekranındaki **Panele devam et** düğmesi paneli açar; ağ taraması ve SSH işlemleri için GymsoftAgent.exe çalışmalıdır.
 
-`_config.yml`, `RaspberryManager` klasörünü (JavaScript, yapılandırma ve indirmeler dahil) ve `uygulama-merkezi.html` dosyasını Jekyll yayınından çıkarır. Genel siteye doğrudan eski yönetim adresleriyle gelenler 404 almalıdır. Bu yapılandırmayı atlayan `.nojekyll` veya repo kökünü olduğu gibi yükleyen bir Actions yayını kullanmayın. Yayından sonra `/RaspberryManager/`, `/RaspberryManager/app.js` ve `/uygulama-merkezi.html` adreslerinin 404 döndüğünü doğrulayın.
+## Yayın ve giriş
 
-Bu sınır GitHub Pages yayını içindir. GitHub deposu herkese açık olduğu sürece kaynak dosyaları ve geçmiş sürümleri GitHub üzerinden indirilebilir; yayından çıkarmak bunları gizlemez. Kaynakların da müşterilere kapalı olması gerekiyorsa Raspberry Manager özel bir depoya taşınmalı ve mevcut açık depo/geçmiş erişimi ayrıca düzenlenmelidir. Web üzerinden özel yönetim için dosyaları sunmadan önce kullanıcıyı doğrulayan sunucu taraflı erişim koruması gerekir; tarayıcıdaki bir parola ekranı yeterli değildir.
+Raspberry Manager ve uygulama merkezi GitHub Pages'te yayınlanır. Giriş paketi `npm run build` ile üretilir ve repoya dahildir. Supabase yapılandırması `Destek/config.js` üzerinden paylaşılır. Oturum sekmenin sessionStorage alanında saklanır; parola saklanmaz. Panel kodu yalnızca oturum ve yönetici yetkisi doğrulandıktan sonra çalıştırılır.
+
+GitHub Pages statik dosyaları herkese sunar; giriş ekranı kaynak dosyalarını veya EXE indirmesini gizlemez. Bu değişiklik yerel Agent API'sine sunucu taraflı Supabase doğrulaması eklemez. Cihaz işlemleri mevcut yerel Agent ve SSH kimlik doğrulaması üzerinden yürür.
 
 ## Yeni uygulama ekleme
 

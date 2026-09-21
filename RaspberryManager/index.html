@@ -6,7 +6,23 @@
     <title>Gymsoft Raspberry Manager v13.2</title>
     <link rel="stylesheet" href="./app.css">
 </head>
-<body>
+<body class="manager-locked">
+<div class="access-gate" id="managerLoginGate">
+    <div class="access-card">
+        <div class="access-icon">G</div>
+        <div class="access-copy">
+            <span class="access-eyebrow">RASPBERRY MANAGER</span>
+            <h1>Yönetici girişi</h1>
+            <p>Yardım Merkezi için oluşturduğunuz yönetici hesabıyla giriş yapın.</p>
+        </div>
+        <form id="managerLoginForm" class="access-form">
+            <label><span>E-posta (kullanıcı adı)</span><input id="managerEmail" type="email" autocomplete="username" required></label>
+            <label><span>Parola</span><input id="managerPassword" type="password" autocomplete="current-password" required></label>
+            <button id="managerLoginBtn" type="submit" disabled>Giriş yap</button>
+            <p id="managerLoginStatus" role="status" aria-live="polite">Giriş hazırlanıyor…</p>
+        </form>
+    </div>
+</div>
 <div class="access-gate hidden" id="agentDownloadGate" role="dialog" aria-modal="true" aria-labelledby="agentDownloadTitle">
     <div class="access-card agent-download-card">
         <div class="access-icon">G</div>
@@ -19,13 +35,14 @@
         <div class="access-actions">
             <a class="button-link primary" id="agentDownloadBtn" href="./downloads/GymsoftAgent.exe" download>GymsoftAgent.exe İndir</a>
             <button type="button" class="secondary" id="agentGateRetryBtn">Agent'ı Tekrar Kontrol Et</button>
+            <button type="button" class="secondary" id="agentGateContinueBtn">Panele devam et</button>
         </div>
     </div>
 </div>
 
 <div class="github-agent-banner" id="agentBanner">
   <div><strong>GymsoftAgent.exe</strong><span id="agentState">Local Agent bağlantısı kontrol ediliyor…</span></div>
-  <div class="agent-banner-actions"><button type="button" class="secondary compact" id="agentCheckBtn">Tekrar Dene</button></div>
+  <div class="agent-banner-actions"><button type="button" class="secondary compact" id="agentCheckBtn">Tekrar Dene</button><button type="button" class="secondary compact" id="managerLogoutBtn">Oturumu kapat</button></div>
 </div>
 
 <div class="shell">
@@ -784,6 +801,7 @@
 </div>
 
 <script src="./config.js"></script>
-<script src="./app.js"></script>
+<script src="../Destek/config.js"></script>
+<script type="module" src="./assets/auth.js"></script>
 </body>
 </html>

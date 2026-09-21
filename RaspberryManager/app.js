@@ -20,6 +20,7 @@ function apiUrl(url) {
     return `${API_BASE}${url.startsWith("/") ? url : `/${url}`}`;
 }
 async function api(url, options = {}) {
+    if (!window.GYMSOFT_MANAGER_AUTHENTICATED) throw new Error("Yönetici girişi gerekli.");
     const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
     const response = await fetch(apiUrl(url), { ...options, headers });
     const contentType = response.headers.get("content-type") || "";
@@ -2152,8 +2153,8 @@ $("githubToken")?.addEventListener("input",()=>{
 
 
 /* ==========================================================================
-   Gymsoft Raspberry Manager v13.2 — Agent-only bootstrap
-   Manager kullanıcı adı / parola girişi kaldırıldı.
+   Gymsoft Raspberry Manager — Yönetici girişinden sonra Agent kontrolü
+   Supabase yönetici oturumu src/auth.js tarafından doğrulanır.
    ========================================================================== */
 let __agentBootBusy = false;
 
@@ -2170,6 +2171,7 @@ function hideAgentDownloadGate(){
 }
 
 $("agentGateRetryBtn")?.addEventListener("click",()=>checkGitHubPagesAgent());
+$("agentGateContinueBtn")?.addEventListener("click",hideAgentDownloadGate);
 
 async function checkGitHubPagesAgent(){
     if (__agentBootBusy) return;
