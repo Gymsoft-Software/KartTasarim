@@ -8,6 +8,27 @@ async function enter(page) {
   await page.locator('#managerLoginBtn').click();
 }
 
+test('Pi installer list excludes test scripts and keeps real installers', async ({ page }) => {
+  await mockBackend(page);
+  await page.route('http://127.0.0.1:5000/**', route => {
+    const scripts = [
+      { path: 'Scripts/Pi3Kurulum/test_pi5_kurulum.sh', name: 'Test Pi 5' },
+      { path: 'Scripts/Pi3Kurulum/gymsoft_pi5_kurulum_v1.sh', name: 'Gymsoft Pi 5' },
+      { path: 'Scripts/tests/install.sh', name: 'Test fixture' },
+      { path: 'Scripts/Pi3Kurulum/pi5_test.sh', name: 'Test suffix' },
+    ];
+    return route.fulfill({contentType:'application/json', body:JSON.stringify({ok:true,name:'Test Agent',version:'test',devices:[],entries:[],scripts})});
+  });
+  await enter(page);
+  await expect(page.locator('.shell')).toBeVisible();
+  await page.locator('[data-page-link="installation"]').click();
+  await page.locator('#githubToken').fill('fixture-token');
+  await page.locator('#loadInstallerScriptsBtn').click();
+  await expect(page.locator('#installerScriptSelect option')).toHaveCount(2);
+  await expect(page.locator('#installerScriptSelect option').last()).toHaveAttribute('value', 'Scripts/Pi3Kurulum/gymsoft_pi5_kurulum_v1.sh');
+  await expect(page.locator('#installerScriptState')).toHaveText('1 script');
+});
+
 test('manager requires login, opens without agent, restores session and signs out', async ({ page }) => {
   await mockBackend(page);
   let calls = 0;

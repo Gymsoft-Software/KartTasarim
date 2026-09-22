@@ -448,6 +448,12 @@ $("toggleToken").addEventListener("click", () => {
     $("toggleToken").textContent = input.type === "password" ? "Göster" : "Gizle";
 });
 
+function isPiInstallerScript(path) {
+    const parts = String(path || '').replace(/\\/g, '/').split('/');
+    const name = parts.pop() || '';
+    return /\.sh$/i.test(name) && !/^tests?(?:[_.-]|$)/i.test(name)
+        && !/[_.-]tests?\.sh$/i.test(name) && !parts.some(part => /^tests?$/i.test(part));
+}
 async function loadPiInstallerScripts(){
     const token=$("githubToken")?.value.trim()||"";
     if(!token){ showToast("Private GitHub Pi scriptlerini listelemek için token girin.","warning","Kurulum Scripti"); return; }
@@ -456,9 +462,10 @@ async function loadPiInstallerScripts(){
     try{
         const data=await api("/api/github/pi-scripts",{method:"POST",body:JSON.stringify({token})});
         const select=$("installerScriptSelect");
-        select.innerHTML='<option value="">Panel v13 Entegre Kurulum Scripti (Önerilen)</option>' + (data.scripts||[]).map(s=>`<option value="${escapeHtml(s.path)}">${escapeHtml(s.name)}</option>`).join("");
-        setStatus($("installerScriptState"),`${(data.scripts||[]).length} script`,"success");
-        showToast(`${(data.scripts||[]).length} Pi kurulum scripti listelendi.`,"success","Private GitHub");
+        const scripts = (data.scripts || []).filter(script => isPiInstallerScript(script.path));
+        select.innerHTML='<option value="">Panel v13 Entegre Kurulum Scripti (Önerilen)</option>' + scripts.map(s=>`<option value="${escapeHtml(s.path)}">${escapeHtml(s.name)}</option>`).join("");
+        setStatus($("installerScriptState"),`${scripts.length} script`,"success");
+        showToast(`${scripts.length} Pi kurulum scripti listelendi.`,"success","Private GitHub");
     }catch(err){ setStatus($("installerScriptState"),"Hata","error"); showToast(err.message,"error","Kurulum Scripti"); }
     finally{ if(btn)btn.disabled=false; }
 }
@@ -552,6 +559,11 @@ $("installBtn").addEventListener("click", async () => {
     }
 
     const mode = $("installMode").value;
+    const installerPath = $("installerScriptSelect")?.value || "";
+    if (installerPath && !isPiInstallerScript(installerPath)) {
+        showToast("Test dosyasıyla kurulum yapılamaz. Listeyi yenileyip kurulum scriptini seçin.", "error", "Kurulum Scripti");
+        return;
+    }
     if ((mode === "github_latest" || mode === "github_release") && !$("githubToken").value.trim()) {
         return alert("GitHub kurulumu için token gerekli.");
     }
