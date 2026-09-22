@@ -151,9 +151,14 @@ async function openEditor(data = null, restoring = false) {
 async function refreshDashboard() {
   $('newArticle').disabled = true; $('manageCategories').disabled = true; $('importPreparedArticle').disabled = true;
   message('dashboardStatus', 'Yazılar yükleniyor…');
-  [allArticles, categories] = await Promise.all([repo.articles(true), repo.categories()]);
-  renderDashboard(); message('dashboardStatus', ''); $('restoreNotice').hidden = !readDraft();
-  $('newArticle').disabled = false; $('manageCategories').disabled = false; $('importPreparedArticle').disabled = false;
+  try {
+    [allArticles, categories] = await Promise.all([repo.articles(true), repo.categories()]);
+    renderDashboard(); message('dashboardStatus', ''); $('restoreNotice').hidden = !readDraft();
+    $('newArticle').disabled = false; $('manageCategories').disabled = false;
+  } finally {
+    // Import fetches its own data and can retry after a dashboard load error.
+    $('importPreparedArticle').disabled = !user || importingPrepared;
+  }
 }
 let importingPrepared = false;
 $('importPreparedArticle').addEventListener('click', async () => {

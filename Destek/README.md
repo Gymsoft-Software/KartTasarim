@@ -65,6 +65,8 @@ Parola sıfırlama için Supabase Auth e-posta/SMTP ayarlarını tamamlayın. SM
 
 ## Medya ve taslaklar
 
+Yönetici panelindeki **Hazır yazıyı yükle**, İnsan Kaynakları için hazırlanan “Kullanıcı adı ve şifre değiştirme” rehberini 8 görselle Supabase'e taslak olarak kaydeder. Kategori yoksa oluşturulur. Aynı bağlantı adına sahip yazı zaten varsa mevcut yazı açılır; üzerine yazılmaz. Önizlemeden sonra **Yayınla** ile müşterilere açabilirsiniz. Bu özellik için `icerikler/` ve kökteki `Destek İçerik/İnsankaynakları/` görselleri de siteyle birlikte dağıtılmalıdır. Aktarım yarıda kesilirse kaydedilmemiş görseller Storage'da kalabilir; mevcut medya temizliği kuralları geçerlidir.
+
 `support-media` bucket'ı **private** kalmalıdır. Görseller yazının UUID klasörüne rastgele adla yüklenir. PNG/JPG/WEBP/GIF, en fazla 5 MB kabul edilir. SVG/HTML kabul edilmez. Yayındaki yazıların görselleri 1 saatlik imzalı URL ile okunur. Taslak görsellerini yalnızca yönetici okuyabilir.
 
 Yayından kaldırılan/silinen yazılar yeni sorgularda görünmez. Önceden açılmış imzalı görsel bağlantıları süreleri dolana kadar çalışabilir. Açık sayfada bir saatten sonra görüntüler için sayfayı yenileyin. Yüklenip kaydedilmeden terk edilen veya metinden çıkarılan dosyalar Storage'da kalabilir; gerekirse bucket'tan temizleyin. Yazı silme akışı o yazının dosyalarını da temizler.
