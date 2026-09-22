@@ -3,6 +3,7 @@ import './image-format.js';
 import * as repo from './repository.js';
 import { slugify, validateArticle, escapeHtml as esc, filterArticles, dateLabel, youtubeId, readingMinutes, imageWidth } from './core.js';
 import { sanitizeContent, hydrateContent, canonicalDelta, hydrateDelta, articleMarkup } from './content.js';
+import { preparedSlug, loadPreparedArticle, preparedDelta } from './prepared-article.js';
 
 const $ = id => document.getElementById(id);
 let user = null, allArticles = [], categories = [], editor = null;
@@ -148,12 +149,72 @@ async function openEditor(data = null, restoring = false) {
 }
 
 async function refreshDashboard() {
-  $('newArticle').disabled = true; $('manageCategories').disabled = true;
+  $('newArticle').disabled = true; $('manageCategories').disabled = true; $('importPreparedArticle').disabled = true;
   message('dashboardStatus', 'Yazılar yükleniyor…');
   [allArticles, categories] = await Promise.all([repo.articles(true), repo.categories()]);
   renderDashboard(); message('dashboardStatus', ''); $('restoreNotice').hidden = !readDraft();
-  $('newArticle').disabled = false; $('manageCategories').disabled = false;
+  $('newArticle').disabled = false; $('manageCategories').disabled = false; $('importPreparedArticle').disabled = false;
 }
+let importingPrepared = false;
+$('importPreparedArticle').addEventListener('click', async () => {
+  if (importingPrepared || !user) return;
+  if (readDraft() && !confirm('Bu oturumda kurtarılabilir bir yazı var. Hazır yazıyı açtıktan sonra düzenlerseniz oturum yedeği değişir. Devam edilsin mi?')) return;
+  importingPrepared = true; saving = true;
+  const controls = [...document.querySelectorAll('#dashboardView button, #dashboardView input, #dashboardView select, #signOut')];
+  const disabledStates = controls.map(control => control.disabled);
+  controls.forEach(control => { control.disabled = true; });
+  $('dashboardView').setAttribute('aria-busy', 'true');
+  const progress = text => message('dashboardStatus', text);
+  let saved = null;
+  try {
+    progress('Hazır yazı kontrol ediliyor…');
+    const existing = (await repo.articles(true)).find(article => article.slug === preparedSlug);
+    if (existing) {
+      await openEditor(await repo.articleById(existing.id));
+      toast('Bu yazı zaten kayıtlı. Mevcut yazı açıldı.');
+      return;
+    }
+    const source = await loadPreparedArticle();
+    categories = await repo.categories();
+    let category = categories.find(item => slugify(item.name) === 'insan-kaynaklari');
+    if (!category) {
+      try { category = await repo.saveCategory({ name: 'İnsan Kaynakları', description: 'Personel hesapları, giriş bilgileri ve yetkilendirme.' }); }
+      catch (error) {
+        if (error.code !== '23505') throw error;
+        category = (await repo.categories()).find(item => slugify(item.name) === 'insan-kaynaklari');
+        if (!category) throw error;
+      }
+      categories.push(category);
+    }
+    setupEditor();
+    const id = crypto.randomUUID();
+    const delta = await preparedDelta(source, id, editor, repo.uploadImage, progress);
+    // Build HTML with the same editor and sanitization used for manually written articles.
+    active = null;
+    editor.setContents(delta, 'silent');
+    const data = {
+      id, title: source.title, slug: preparedSlug, summary: source.summary,
+      category_id: category.id, tags: source.tags, youtube_url: '', pinned: false,
+      status: 'draft', published_at: null,
+      content_delta: canonicalDelta(editor.getContents()),
+      content_html: sanitizeContent(editor.getSemanticHTML()), content_text: editor.getText(),
+    };
+    validateArticle(data);
+    progress('Görselli yazı taslak olarak kaydediliyor…');
+    saved = await repo.saveArticle(data);
+    await openEditor(saved);
+    setStep(3);
+    message('editorStatus', 'Hazır yazı 8 görseliyle taslak olarak kaydedildi. Önizlemeyi kontrol edip Yayınla düğmesine basabilirsiniz.');
+    toast('Hazır yazı taslak olarak kaydedildi.');
+  } catch (error) {
+    message('dashboardStatus', saved ? 'Taslak kaydedildi ancak editör açılamadı. Yenile düğmesine basıp yazıyı açın.' : errorText(error), true);
+  } finally {
+    importingPrepared = false; saving = false;
+    controls.forEach((control, index) => { control.disabled = disabledStates[index]; });
+    $('dashboardView').removeAttribute('aria-busy');
+    if (editor) syncImageControls();
+  }
+});
 function renderDashboard() {
   $('totalStat').textContent = allArticles.length; $('publishedStat').textContent = allArticles.filter(a => a.status === 'published').length;
   $('draftStat').textContent = allArticles.filter(a => a.status === 'draft').length; $('categoryStat').textContent = categories.length;
